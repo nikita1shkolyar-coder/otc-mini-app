@@ -81,7 +81,7 @@
 
         .select-wrapper { position: relative; margin-bottom: 10px; }
 
-        select {
+        select, input[type="number"] {
             width: 100%;
             appearance: none;
             background: rgba(15, 23, 42, 0.95);
@@ -104,18 +104,24 @@
             font-size: 11px;
         }
 
-        .tf-grid {
+        .controls-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
             margin-bottom: 10px;
         }
 
+        .tf-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
         .tf-btn {
             background: rgba(15, 23, 42, 0.85);
             border: 1px solid rgba(148, 163, 184, 0.2);
             color: var(--text-muted);
-            padding: 9px 0;
+            padding: 10px 0;
             border-radius: 10px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 13px;
@@ -127,6 +133,42 @@
             background: rgba(14, 165, 233, 0.18);
             border-color: var(--accent-blue);
             color: #fff;
+        }
+
+        .markup-box {
+            position: relative;
+        }
+
+        .markup-box input {
+            font-family: 'JetBrains Mono', monospace;
+            padding-right: 28px;
+            text-align: center;
+        }
+
+        .markup-box.invalid input {
+            border-color: var(--red-neon);
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .markup-suffix {
+            position: absolute;
+            right: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .markup-warn {
+            display: none;
+            font-size: 11px;
+            color: #f87171;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-align: center;
         }
 
         .scan-btn {
@@ -142,7 +184,11 @@
             box-shadow: 0 6px 20px var(--accent-glow);
         }
 
-        .scan-btn:disabled { opacity: 0.6; }
+        .scan-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
 
         .chart-box {
             background: #090e1a;
@@ -271,11 +317,27 @@
             <div class="select-arrow">▼</div>
         </div>
 
-        <div class="section-label"><span>2. Таймфрейм свечей</span></div>
-        <div class="tf-grid">
-            <button type="button" class="tf-btn active" onclick="selectTf('1m', this)">1 MIN (M1)</button>
-            <button type="button" class="tf-btn" onclick="selectTf('5m', this)">5 MIN (M5)</button>
+        <div class="controls-row">
+            <div>
+                <div class="section-label"><span>2. Таймфрейм</span></div>
+                <div class="tf-grid">
+                    <button type="button" class="tf-btn active" onclick="selectTf('1m', this)">1M</button>
+                    <button type="button" class="tf-btn" onclick="selectTf('5m', this)">5M</button>
+                </div>
+            </div>
+            <div>
+                <div class="section-label">
+                    <span>3. Наценка</span>
+                    <span style="color: #38bdf8;">ДО 5%</span>
+                </div>
+                <div class="markup-box" id="markupBox">
+                    <input type="number" id="markupInput" value="2.5" min="0" max="5" step="0.1" oninput="validateMarkup()">
+                    <span class="markup-suffix">%</span>
+                </div>
+            </div>
         </div>
+
+        <div id="markupWarn" class="markup-warn">⛔ Наценка больше 5% не допускается (укажи от 0% до 5%)</div>
 
         <button id="scanBtn" class="scan-btn" onclick="startScan()">🔍 АНАЛИЗ РЕАЛЬНОГО ГРАФИКА</button>
     </div>
@@ -334,6 +396,19 @@
 
         const canvas = document.getElementById('candleChart');
         const ctx = canvas.getContext('2d');
+
+        function validateMarkup() {
+            const val = parseFloat(document.getElementById('markupInput').value);
+            const box = document.getElementById('markupBox');
+            const warn = document.getElementById('markupWarn');
+            const btn = document.getElementById('scanBtn');
+
+            const isValid = !isNaN(val) && val >= 0 && val <= 5;
+            box.classList.toggle('invalid', !isValid);
+            warn.style.display = isValid ? 'none' : 'block';
+            btn.disabled = !isValid;
+            return isValid;
+        }
 
         function getDecimals(price) {
             if (price >= 1000) return 2;
@@ -495,9 +570,12 @@
         }
 
         async function startScan() {
+            if (!validateMarkup()) return;
+
             const btn = document.getElementById('scanBtn');
             const card = document.getElementById('signalCard');
             const pair = document.getElementById('pairSelect').value;
+            const markupVal = parseFloat(document.getElementById('markupInput').value);
 
             if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 
@@ -511,7 +589,7 @@
                 const res = await fetch('/api/scan', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ pair: pair, timeframe: selectedTf })
+                    body: JSON.stringify({ pair: pair, timeframe: selectedTf, markup: markupVal })
                 });
                 const data = await res.json();
 
@@ -545,7 +623,7 @@
                 alert("Ошибка соединения с сервером.");
                 btn.innerText = '🔍 АНАЛИЗ РЕАЛЬНОГО ГРАФИКА';
             } finally {
-                btn.disabled = false;
+                validateMarkup();
             }
         }
 
