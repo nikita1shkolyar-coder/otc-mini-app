@@ -9,6 +9,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, W
 # ================= НАСТРОЙКИ =================
 TG_TOKEN = "9044932823:AAFV-Kc36rZ-XqQflnHmt4QX2rxQluyGBMk"
 WEBAPP_URL = "https://otc-mini-app.onrender.com"
+MAX_MARKUP_PERCENT = 5.0  # Строгий лимит: разрешено от 0% до 5%, если > 5% — не пропускаем
 # =============================================
 
 logging.basicConfig(level=logging.INFO)
@@ -116,7 +117,8 @@ async def cmd_start(message: Message):
     await message.answer(
         "📊 **PT Prime AI • Реальные рыночные пары (Pocket Option)**\n\n"
         "• Прямой поток реальных свечей Forex (пн–пт) и Крипты (24/7).\n"
-        "• Расчёт индикаторов **RSI (14)**, **EMA 9/21** и **Bollinger Bands** в реальном времени.",
+        "• Фильтр наценки/отклонения до **5%** включительно.\n"
+        "• Расчёт **RSI (14)**, **EMA 9/21** и **Bollinger Bands** в реальном времени.",
         reply_markup=kb,
         parse_mode="Markdown"
     )
@@ -141,6 +143,14 @@ async def handle_scan(request):
     data = await request.json()
     pair = data.get("pair", "EUR/USD")
     tf = data.get("timeframe", "1m")
+    user_markup = float(data.get("markup", 0.0))
+
+    # Проверка лимита наценки: разрешено только от 0% до 5% включительно
+    if not (0 <= user_markup <= MAX_MARKUP_PERCENT):
+        return web.json_response({
+            "ok": False,
+            "error": f"Наценка {user_markup}% превышает допустимый лимит в {MAX_MARKUP_PERCENT}%! Вход отклонён."
+        })
 
     try:
         candles = await fetch_market_candles(pair, tf)
@@ -153,6 +163,14 @@ async def handle_scan(request):
         ema9 = calc_ema(closes[-15:], 9)
         ema21 = calc_ema(closes[-25:], 21)
         upper_bb, lower_bb = calc_bollinger(closes, 20)
+
+        # Дополнительно проверяем рыночное отклонение цены от EMA21 (не более 5%)
+        market_deviation_pct = round(abs((last_price - ema21) / ema21) * 100, 3) if ema21 else 0.0
+        if market_deviation_pct > MAX_MARKUP_PERCENT:
+            return web.json_response({
+                "ok": False,
+                "error": f"Аномальный импульс рынка ({market_deviation_pct}% > {MAX_MARKUP_PERCENT}%). Вход пропущен для безопасности."
+            })
 
         call_points = 0
         put_points = 0
@@ -193,10 +211,11 @@ async def handle_scan(request):
             "ok": True,
             "pair": pair,
             "timeframe": tf,
+            "markup": user_markup,
             "direction": "ВВЕРХ 🟢 (CALL)" if is_call else "ВНИЗ 🔴 (PUT)",
             "confidence": confidence,
             "rsi": rsi,
-            "reason": f"Анализ {len(candles)} рыночных свечей {pair} ({tf}): " + ", ".join(reasons) + "."
+            "reason": f"Наценка {user_markup}% в норме (≤{MAX_MARKUP_PERCENT}%). Анализ {len(candles)} свечей {pair} ({tf}): " + ", ".join(reasons) + "."
         })
     except Exception as e:
         return web.json_response({"ok": False, "error": f"Нет свежих котировок (возможно, биржа закрыта): {e}"})
