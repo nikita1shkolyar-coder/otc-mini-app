@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -31,89 +30,58 @@
             background: radial-gradient(circle at 50% 0%, #111d35 0%, var(--bg-main) 65%);
             color: var(--text-main);
             margin: 0;
-            padding: 16px;
+            padding: 14px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 12px;
         }
 
-        /* Верхняя шапка */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 4px 2px;
+            padding: 2px;
         }
 
         .brand {
-            display: flex;
-            align-items: center;
-            gap: 8px;
             font-weight: 800;
-            font-size: 17px;
-            letter-spacing: 0.3px;
+            font-size: 16px;
             background: linear-gradient(90deg, #fff, #38bdf8);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .status-pill {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #34d399;
+        .clock-pill {
+            font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
-            font-weight: 700;
-            padding: 5px 10px;
+            color: #38bdf8;
+            background: rgba(14, 165, 233, 0.12);
+            border: 1px solid rgba(14, 165, 233, 0.3);
+            padding: 4px 10px;
             border-radius: 20px;
-            text-transform: uppercase;
         }
 
-        .dot {
-            width: 7px;
-            height: 7px;
-            background: #10b981;
-            border-radius: 50%;
-            box-shadow: 0 0 8px #10b981;
-            animation: pulse 1.6s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(1.3); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        /* Стеклянные карточки */
         .card {
             background: var(--bg-card);
             backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
             border: 1px solid var(--border-glass);
             border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            padding: 14px;
         }
 
         .section-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.6px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             display: flex;
             justify-content: space-between;
         }
 
-        /* Кастомный селект пары */
-        .select-wrapper {
-            position: relative;
-            margin-bottom: 16px;
-        }
+        .select-wrapper { position: relative; margin-bottom: 12px; }
 
         select {
             width: 100%;
@@ -122,190 +90,139 @@
             color: #fff;
             border: 1px solid rgba(148, 163, 184, 0.25);
             border-radius: 12px;
-            padding: 14px 16px;
-            font-family: 'Inter', sans-serif;
-            font-size: 15px;
+            padding: 12px 14px;
+            font-size: 14px;
             font-weight: 700;
             outline: none;
-            transition: border-color 0.2s;
-        }
-
-        select:focus {
-            border-color: var(--accent-blue);
         }
 
         .select-arrow {
             position: absolute;
-            right: 16px;
+            right: 14px;
             top: 50%;
             transform: translateY(-50%);
             color: var(--accent-blue);
             pointer-events: none;
-            font-size: 12px;
+            font-size: 11px;
         }
 
-        /* Кнопки-чипы таймфрейма */
         .tf-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .tf-btn {
             background: rgba(15, 23, 42, 0.8);
             border: 1px solid rgba(148, 163, 184, 0.2);
             color: var(--text-muted);
-            padding: 11px 0;
+            padding: 10px 0;
             border-radius: 10px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s ease;
         }
 
         .tf-btn.active {
             background: rgba(14, 165, 233, 0.18);
             border-color: var(--accent-blue);
             color: #fff;
-            box-shadow: 0 0 15px rgba(14, 165, 233, 0.25);
         }
 
-        /* Главная кнопка сканирования */
         .scan-btn {
             width: 100%;
-            padding: 15px;
+            padding: 13px;
             border: none;
             border-radius: 12px;
             background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
             color: #fff;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
-            letter-spacing: 0.3px;
             cursor: pointer;
             box-shadow: 0 6px 20px var(--accent-glow);
-            transition: transform 0.15s, opacity 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
         }
 
-        .scan-btn:active { transform: scale(0.98); }
-        .scan-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .scan-btn:disabled { opacity: 0.6; }
 
-        /* Карточка результата */
-        .signal-card {
-            display: none;
-            animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(14px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .signal-card { display: none; }
 
         .signal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .pair-badge {
-            font-size: 16px;
-            font-weight: 800;
-            color: #fff;
-        }
-
+        .pair-badge { font-size: 15px; font-weight: 800; color: #fff; }
         .tf-tag {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
+            font-size: 11px;
             background: rgba(255, 255, 255, 0.08);
-            padding: 4px 8px;
+            padding: 3px 8px;
             border-radius: 6px;
             color: #38bdf8;
         }
 
-        /* Направление сделки */
         .direction-box {
             border-radius: 12px;
-            padding: 14px;
+            padding: 12px;
             text-align: center;
-            margin-bottom: 14px;
-            font-size: 20px;
+            margin-bottom: 12px;
+            font-size: 18px;
             font-weight: 800;
-            letter-spacing: 0.5px;
         }
 
         .direction-box.call {
             background: var(--green-bg);
             border: 1px solid rgba(16, 185, 129, 0.4);
             color: #34d399;
-            box-shadow: 0 0 25px rgba(16, 185, 129, 0.15);
         }
 
         .direction-box.put {
             background: var(--red-bg);
             border: 1px solid rgba(239, 68, 68, 0.4);
             color: #f87171;
-            box-shadow: 0 0 25px rgba(239, 68, 68, 0.15);
         }
 
-        /* Сетка показателей */
         .metrics-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 14px;
+            gap: 8px;
+            margin-bottom: 12px;
         }
 
         .metric-item {
             background: rgba(15, 23, 42, 0.7);
-            padding: 10px 12px;
+            padding: 8px 10px;
             border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .metric-title {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-        }
+        .metric-title { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
+        .metric-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; }
 
-        .metric-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        /* Прогресс-бар уверенности */
         .conf-bar-bg {
             width: 100%;
-            height: 6px;
+            height: 5px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 4px;
             overflow: hidden;
-            margin-top: 6px;
+            margin-top: 5px;
         }
 
         .conf-bar-fill {
             height: 100%;
             background: linear-gradient(90deg, #0ea5e9, #10b981);
-            border-radius: 4px;
-            transition: width 0.6s ease;
         }
 
-        /* Таймеры (Подготовка и Сделка) */
         .timer-panel {
             border-radius: 12px;
-            padding: 14px;
+            padding: 12px;
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .timer-prep {
@@ -322,63 +239,49 @@
 
         .timer-digits {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 800;
-            margin: 4px 0;
+            margin: 3px 0;
             color: #fff;
         }
 
-        .timer-sub {
-            font-size: 12px;
-            opacity: 0.9;
-        }
+        .timer-sub { font-size: 11px; opacity: 0.9; }
 
-        /* Аналитика ИИ */
         .ai-reason {
             background: rgba(15, 23, 42, 0.65);
             border-left: 3px solid var(--accent-blue);
-            padding: 10px 12px;
+            padding: 8px 10px;
             border-radius: 0 10px 10px 0;
-            font-size: 12.5px;
-            line-height: 1.45;
+            font-size: 11.5px;
+            line-height: 1.4;
             color: #cbd5e1;
         }
 
-        /* Итог сделки */
         .result-banner {
             display: none;
-            margin-top: 12px;
-            padding: 14px;
+            margin-top: 10px;
+            padding: 12px;
             border-radius: 12px;
             text-align: center;
             font-weight: 800;
-            font-size: 16px;
+            font-size: 15px;
         }
 
-        .result-win {
-            background: var(--green-bg);
-            border: 1px solid var(--green-neon);
-            color: #34d399;
-        }
-
-        .result-loss {
-            background: var(--red-bg);
-            border: 1px solid var(--red-neon);
-            color: #f87171;
-        }
+        .result-win { background: var(--green-bg); border: 1px solid var(--green-neon); color: #34d399; }
+        .result-loss { background: var(--red-bg); border: 1px solid var(--red-neon); color: #f87171; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <div class="brand">⚡ PT PRIME AI</div>
-        <div class="status-pill"><div class="dot"></div> OTC LIVE</div>
+        <div class="clock-pill" id="liveClock">00:00:00</div>
     </div>
 
     <div class="card">
         <div class="section-label">
-            <span>1. Выбери актив на брокере</span>
-            <span style="color: #38bdf8;">92% выплата</span>
+            <span>1. Актив на брокере</span>
+            <span style="color: #38bdf8;">SYNC M1/M5</span>
         </div>
         <div class="select-wrapper">
             <select id="pairSelect">
@@ -392,18 +295,14 @@
             <div class="select-arrow">▼</div>
         </div>
 
-        <div class="section-label">
-            <span>2. Экспирация свечи</span>
-        </div>
+        <div class="section-label"><span>2. Экспирация свечи</span></div>
         <div class="tf-grid">
             <button type="button" class="tf-btn active" onclick="selectTf('1m', this)">1 MIN</button>
             <button type="button" class="tf-btn" onclick="selectTf('3m', this)">3 MIN</button>
             <button type="button" class="tf-btn" onclick="selectTf('5m', this)">5 MIN</button>
         </div>
 
-        <button id="scanBtn" class="scan-btn" onclick="startScan()">
-            <span>🔍 ПРОСКАНИРОВАТЬ СВЕЧУ</span>
-        </button>
+        <button id="scanBtn" class="scan-btn" onclick="startScan()">🔍 ПРОСКАНИРОВАТЬ СВЕЧУ</button>
     </div>
 
     <div id="signalCard" class="card signal-card">
@@ -418,32 +317,29 @@
             <div class="metric-item">
                 <div class="metric-title">ТОЧНОСТЬ ИИ</div>
                 <div id="confValue" class="metric-value">84%</div>
-                <div class="conf-bar-bg">
-                    <div id="confBar" class="conf-bar-fill" style="width: 84%;"></div>
-                </div>
+                <div class="conf-bar-bg"><div id="confBar" class="conf-bar-fill" style="width: 84%;"></div></div>
             </div>
             <div class="metric-item">
-                <div class="metric-title">КОТИРОВКА ВХОДА</div>
-                <div id="entryPrice" class="metric-value">1.08420</div>
+                <div class="metric-title">ВХОД НА СВЕЧЕ</div>
+                <div id="entryTimeLabel" class="metric-value">--:--:00</div>
             </div>
         </div>
 
-        <!-- Этап 1: Подготовка к открытию новой свечи -->
+        <!-- Этап 1: Синхронизированный отсчет до :00 секунды новой свечи -->
         <div id="prepContainer" class="timer-panel timer-prep">
-            <div class="timer-sub">⏳ ОТКРОЙ ПАРУ НА БРОКЕРЕ! ВХОД ЧЕРЕЗ:</div>
-            <div class="timer-digits">00:<span id="prepTimer">10</span></div>
-            <div class="timer-sub">Жди 00-ю секунду для открытия новой свечи</div>
+            <div class="timer-sub">⏳ ДО ОТКРЫТИЯ НОВОЙ СВЕЧИ НА БРОКЕРЕ:</div>
+            <div class="timer-digits" id="prepTimer">00:28</div>
+            <div class="timer-sub">Жми кнопку на брокере ровно в 00:00!</div>
         </div>
 
-        <!-- Этап 2: Сделка в работе -->
+        <!-- Этап 2: Сделка идет синхронно со свечой брокера -->
         <div id="liveContainer" class="timer-panel timer-live" style="display: none;">
-            <div class="timer-sub">🟢 СДЕЛКА АКТИВНА! ДО ЗАКРЫТИЯ:</div>
+            <div class="timer-sub">🟢 СДЕЛКА В РАБОТЕ! ДО ЗАКРЫТИЯ СВЕЧИ:</div>
             <div class="timer-digits" id="liveTimer">01:00</div>
-            <div class="timer-sub">ИИ отслеживает закрытие свечи...</div>
+            <div class="timer-sub">Синхронизировано с таймером M1/M5</div>
         </div>
 
         <div id="reason" class="ai-reason"></div>
-
         <div id="resultBanner" class="result-banner"></div>
     </div>
 
@@ -453,7 +349,13 @@
         tg.setHeaderColor('#070b14');
 
         let selectedTf = '1m';
-        let prepInterval, liveInterval;
+        let syncInterval;
+
+        // Живые часы в шапке (синхронизированы со временем телефона, как у брокера)
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('liveClock').innerText = now.toTimeString().split(' ')[0];
+        }, 250);
 
         function selectTf(tf, btnElement) {
             selectedTf = tf;
@@ -468,6 +370,28 @@
             return `${m}:${s}`;
         }
 
+        // Вычисляем точное время открытия следующей свечи (по реальным часам)
+        function getNextCandleTimestamp(tf) {
+            const now = new Date();
+            const stepMinutes = tf === '5m' ? 5 : (tf === '3m' ? 3 : 1);
+            const target = new Date(now.getTime());
+            target.setMilliseconds(0);
+            target.setSeconds(0);
+
+            const currentMin = now.getMinutes();
+            const remainder = currentMin % stepMinutes;
+            let minsToAdd = stepMinutes - remainder;
+
+            // Если до конца текущей свечи осталось меньше 7 секунд, берем следующую свечу, чтобы успеть нажать
+            const secsLeftInCurrent = (minsToAdd * 60) - now.getSeconds();
+            if (secsLeftInCurrent < 7) {
+                minsToAdd += stepMinutes;
+            }
+
+            target.setMinutes(currentMin + minsToAdd);
+            return target.getTime();
+        }
+
         async function startScan() {
             const btn = document.getElementById('scanBtn');
             const card = document.getElementById('signalCard');
@@ -476,7 +400,7 @@
             if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 
             btn.disabled = true;
-            btn.innerHTML = '<span>⏳ АНАЛИЗ ПАТТЕРНОВ И RSI...</span>';
+            btn.innerText = '⏳ СИНХРОНИЗАЦИЯ СО СВЕЧОЙ...';
             card.style.display = 'none';
             document.getElementById('resultBanner').style.display = 'none';
 
@@ -490,8 +414,13 @@
 
                 if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
+                const entryTimestamp = getNextCandleTimestamp(data.timeframe);
+                const entryDate = new Date(entryTimestamp);
+                const entryTimeStr = entryDate.toTimeString().split(' ')[0];
+
                 document.getElementById('pairTitle').innerText = data.pair;
                 document.getElementById('tfBadge').innerText = `TF: ${data.timeframe.toUpperCase()}`;
+                document.getElementById('entryTimeLabel').innerText = entryTimeStr;
 
                 const badge = document.getElementById('directionBadge');
                 badge.innerText = data.direction;
@@ -499,72 +428,69 @@
 
                 document.getElementById('confValue').innerText = `${data.confidence}%`;
                 document.getElementById('confBar').style.width = `${data.confidence}%`;
-                document.getElementById('entryPrice').innerText = data.entry_price;
-                document.getElementById('reason').innerText = `💡 ${data.reason}`;
+                document.getElementById('reason').innerText = `💡 Вход строго в ${entryTimeStr} (начало новой свечи). ${data.reason}`;
 
                 card.style.display = 'block';
-                btn.innerHTML = '<span>🔍 НОВЫЙ СКАН</span>';
+                btn.innerText = '🔍 НОВЫЙ СКАН';
 
-                startPrepTimer(data);
+                startSyncedTimers(data, entryTimestamp);
 
             } catch (e) {
-                alert("Ошибка соединения с сервером. Попробуй снова.");
-                btn.innerHTML = '<span>🔍 ПРОСКАНИРОВАТЬ СВЕЧУ</span>';
+                alert("Ошибка соединения. Попробуй ещё раз.");
+                btn.innerText = '🔍 ПРОСКАНИРОВАТЬ СВЕЧУ';
             } finally {
                 btn.disabled = false;
             }
         }
 
-        function startPrepTimer(signalData) {
-            clearInterval(prepInterval);
-            clearInterval(liveInterval);
+        function startSyncedTimers(signalData, entryTimestamp) {
+            clearInterval(syncInterval);
 
-            let prepTime = 10;
+            const durationSec = signalData.timeframe === '5m' ? 300 : (signalData.timeframe === '3m' ? 180 : 60);
+            const closeTimestamp = entryTimestamp + (durationSec * 1000);
+
             const prepBox = document.getElementById('prepContainer');
             const liveBox = document.getElementById('liveContainer');
             const prepSpan = document.getElementById('prepTimer');
-
-            prepBox.style.display = 'block';
-            liveBox.style.display = 'none';
-            prepSpan.innerText = prepTime.toString().padStart(2, '0');
-
-            prepInterval = setInterval(() => {
-                prepTime--;
-                prepSpan.innerText = prepTime.toString().padStart(2, '0');
-                
-                if (prepTime <= 3 && prepTime > 0 && tg.HapticFeedback) {
-                    tg.HapticFeedback.impactOccurred('light');
-                }
-
-                if (prepTime <= 0) {
-                    clearInterval(prepInterval);
-                    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
-                    prepBox.style.display = 'none';
-                    startLiveTimer(signalData);
-                }
-            }, 1000);
-        }
-
-        function startLiveTimer(signalData) {
-            let liveTime = 60;
-            if (signalData.timeframe === '3m') liveTime = 180;
-            if (signalData.timeframe === '5m') liveTime = 300;
-
-            const liveBox = document.getElementById('liveContainer');
             const liveSpan = document.getElementById('liveTimer');
 
-            liveBox.style.display = 'block';
-            liveSpan.innerText = formatSeconds(liveTime);
+            let entered = false;
+            let lastPrepSec = -1;
 
-            liveInterval = setInterval(() => {
-                liveTime--;
-                liveSpan.innerText = formatSeconds(liveTime);
-                if (liveTime <= 0) {
-                    clearInterval(liveInterval);
+            syncInterval = setInterval(() => {
+                const now = Date.now();
+
+                if (now < entryTimestamp) {
+                    // Этап 1: Ждём открытия новой свечи (:00)
+                    const secLeft = Math.ceil((entryTimestamp - now) / 1000);
+                    prepBox.style.display = 'block';
+                    liveBox.style.display = 'none';
+                    prepSpan.innerText = formatSeconds(secLeft);
+
+                    if (secLeft <= 3 && secLeft !== lastPrepSec && tg.HapticFeedback) {
+                        tg.HapticFeedback.impactOccurred('light');
+                    }
+                    lastPrepSec = secLeft;
+
+                } else if (now < closeTimestamp) {
+                    // Этап 2: Новая свеча открылась — идёт сделка!
+                    if (!entered) {
+                        entered = true;
+                        if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
+                    }
+                    const secLeft = Math.ceil((closeTimestamp - now) / 1000);
+                    prepBox.style.display = 'none';
+                    liveBox.style.display = 'block';
+                    liveSpan.innerText = formatSeconds(secLeft);
+
+                } else {
+                    // Этап 3: Свеча закрылась
+                    clearInterval(syncInterval);
+                    prepBox.style.display = 'none';
                     liveBox.style.display = 'none';
                     checkResult(signalData);
                 }
-            }, 1000);
+            }, 200);
         }
 
         async function checkResult(signalData) {
