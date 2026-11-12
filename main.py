@@ -9,7 +9,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, W
 
 # ================= НАСТРОЙКИ =================
 TG_TOKEN = "9044932823:AAFV-Kc36rZ-XqQflnHmt4QX2rxQluyGBMk"
-WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://otc-mini-app.onrender.com")
+WEBAPP_URL = "https://otc-mini-app.onrender.com"
 # =============================================
 
 logging.basicConfig(level=logging.INFO)
