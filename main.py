@@ -8,8 +8,8 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
 # ================= НАСТРОЙКИ =================
-TG_TOKEN = "9044932823:AAFV-Kc36rZ-XqQflnHmt4QX2rxQluyGBMk"
-WEBAPP_URL = "https://example.com"
+TG_TOKEN = os.environ.get("9044932823:AAFV-Kc36rZ-XqQflnHmt4QX2rxQluyGBMk")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://otc-mini-app.onrender.com")
 # =============================================
 
 logging.basicConfig(level=logging.INFO)
@@ -46,7 +46,6 @@ async def handle_scan(request):
     rsi_val = round(random.uniform(18.0, 82.0), 1)
     ema_cross = random.choice(["бычье пересечение (EMA9 > EMA21)", "медвежье пересечение (EMA9 < EMA21)", "флэт"])
     
-    # Расчет уверенности
     confidence = 50
     if rsi_val < 28 or rsi_val > 72:
         confidence += 18
@@ -54,7 +53,6 @@ async def handle_scan(request):
         confidence += 12
     confidence += random.randint(-5, 9)
 
-    # ФИЛЬТР 70%+
     if confidence < 70:
         return web.json_response({
             "found": False,
@@ -76,12 +74,10 @@ async def handle_scan(request):
     })
 
 async def handle_check_result(request):
-    """Сверка результата по окончанию таймера."""
     data = await request.json()
     direction = data.get("direction", "")
     entry_price = float(data.get("entry_price", 0))
 
-    # Имитация движения цены котировки
     price_change = round(random.uniform(-0.0008, 0.0008), 5)
     exit_price = round(entry_price + price_change, 5)
 
@@ -96,5 +92,19 @@ async def handle_check_result(request):
 
 async def start_services():
     app = web.Application()
-    app.router.add_get
+    app.router.add_get("/", handle_index)
+    app.router.add_post("/api/scan", handle_scan)
+    app.router.add_post("/api/check_result", handle_check_result)
 
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logging.info(f"Сервер запущен на порту {port}")
+
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(start_services())
