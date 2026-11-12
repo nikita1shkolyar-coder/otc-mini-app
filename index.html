@@ -1,282 +1,591 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI OTC Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PT Prime AI Scanner</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-main: #070b14;
+            --bg-card: rgba(17, 25, 40, 0.85);
+            --border-glass: rgba(56, 189, 248, 0.18);
+            --accent-blue: #0ea5e9;
+            --accent-glow: rgba(14, 165, 233, 0.35);
+            --green-neon: #10b981;
+            --green-bg: rgba(16, 185, 129, 0.14);
+            --red-neon: #ef4444;
+            --red-bg: rgba(239, 68, 68, 0.14);
+            --amber-neon: #f59e0b;
+            --amber-bg: rgba(245, 158, 11, 0.15);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: radial-gradient(circle at 50% 0%, #111d35 0%, var(--bg-main) 65%);
+            color: var(--text-main);
             margin: 0;
             padding: 16px;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            gap: 14px;
         }
+
+        /* Верхняя шапка */
         .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .header h2 {
-            margin: 0;
-            font-size: 20px;
-            color: #38bdf8;
-        }
-        .badge {
-            display: inline-block;
-            background: rgba(56, 189, 248, 0.15);
-            color: #38bdf8;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            margin-top: 6px;
-        }
-        .tf-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            width: 100%;
-            max-width: 400px;
-            margin-bottom: 20px;
-        }
-        .tf-btn {
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #cbd5e1;
-            padding: 12px 0;
-            border-radius: 10px;
-            font-weight: bold;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .tf-btn.active {
-            background: #0284c7;
-            border-color: #38bdf8;
-            color: #ffffff;
-        }
-        .scan-btn {
-            width: 100%;
-            max-width: 400px;
-            background: linear-gradient(135deg, #10b981, #059669);
-            border: none;
-            color: white;
-            padding: 16px;
-            border-radius: 14px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .scan-btn:disabled {
-            background: #475569;
-        }
-        .result-card {
-            width: 100%;
-            max-width: 400px;
-            background: #1e293b;
-            border-radius: 16px;
-            padding: 18px;
-            margin-top: 20px;
-            box-sizing: border-box;
-            border: 1px solid #334155;
-            display: none;
-        }
-        .row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
+            align-items: center;
+            padding: 4px 2px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 800;
+            font-size: 17px;
+            letter-spacing: 0.3px;
+            background: linear-gradient(90deg, #fff, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+            animation: pulse 1.6s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.3); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Стеклянные карточки */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Кастомный селект пары */
+        .select-wrapper {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        select {
+            width: 100%;
+            appearance: none;
+            background: rgba(15, 23, 42, 0.9);
+            color: #fff;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-family: 'Inter', sans-serif;
             font-size: 15px;
+            font-weight: 700;
+            outline: none;
+            transition: border-color 0.2s;
         }
-        .dir-box {
-            text-align: center;
-            font-size: 22px;
-            font-weight: bold;
-            padding: 12px;
-            border-radius: 10px;
-            margin: 12px 0;
-            background: #0f172a;
+
+        select:focus {
+            border-color: var(--accent-blue);
         }
-        .live-status {
-            text-align: center;
-            background: rgba(239, 68, 68, 0.15);
-            color: #ef4444;
-            padding: 10px;
+
+        .select-arrow {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent-blue);
+            pointer-events: none;
+            font-size: 12px;
+        }
+
+        /* Кнопки-чипы таймфрейма */
+        .tf-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .tf-btn {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: var(--text-muted);
+            padding: 11px 0;
             border-radius: 10px;
-            font-weight: bold;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 14px;
-            margin: 12px 0;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tf-btn.active {
+            background: rgba(14, 165, 233, 0.18);
+            border-color: var(--accent-blue);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.25);
+        }
+
+        /* Главная кнопка сканирования */
+        .scan-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px var(--accent-glow);
+            transition: transform 0.15s, opacity 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
         }
-        .pulse-dot {
-            width: 10px;
-            height: 10px;
-            background-color: #ef4444;
-            border-radius: 50%;
-            display: inline-block;
-            animation: pulse 1s infinite;
+
+        .scan-btn:active { transform: scale(0.98); }
+        .scan-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Карточка результата */
+        .signal-card {
+            display: none;
+            animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.3; transform: scale(1.2); }
-            100% { opacity: 1; transform: scale(1); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .final-result {
+
+        .signal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .pair-badge {
+            font-size: 16px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .tf-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: #38bdf8;
+        }
+
+        /* Направление сделки */
+        .direction-box {
+            border-radius: 12px;
+            padding: 14px;
             text-align: center;
-            font-size: 24px;
-            font-weight: bold;
+            margin-bottom: 14px;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .direction-box.call {
+            background: var(--green-bg);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #34d399;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.15);
+        }
+
+        .direction-box.put {
+            background: var(--red-bg);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #f87171;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.15);
+        }
+
+        /* Сетка показателей */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .metric-item {
+            background: rgba(15, 23, 42, 0.7);
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .metric-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* Прогресс-бар уверенности */
+        .conf-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .conf-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0ea5e9, #10b981);
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        /* Таймеры (Подготовка и Сделка) */
+        .timer-panel {
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .timer-prep {
+            background: var(--amber-bg);
+            border: 1px solid rgba(245, 158, 11, 0.45);
+            color: #fcd34d;
+        }
+
+        .timer-live {
+            background: rgba(14, 165, 233, 0.15);
+            border: 1px solid rgba(14, 165, 233, 0.45);
+            color: #38bdf8;
+        }
+
+        .timer-digits {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 26px;
+            font-weight: 800;
+            margin: 4px 0;
+            color: #fff;
+        }
+
+        .timer-sub {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* Аналитика ИИ */
+        .ai-reason {
+            background: rgba(15, 23, 42, 0.65);
+            border-left: 3px solid var(--accent-blue);
+            padding: 10px 12px;
+            border-radius: 0 10px 10px 0;
+            font-size: 12.5px;
+            line-height: 1.45;
+            color: #cbd5e1;
+        }
+
+        /* Итог сделки */
+        .result-banner {
+            display: none;
+            margin-top: 12px;
             padding: 14px;
             border-radius: 12px;
-            margin-top: 14px;
+            text-align: center;
+            font-weight: 800;
+            font-size: 16px;
         }
-        .reason {
-            font-size: 13px;
-            color: #94a3b8;
-            line-height: 1.4;
-            background: rgba(15, 23, 42, 0.6);
-            padding: 10px;
-            border-radius: 8px;
+
+        .result-win {
+            background: var(--green-bg);
+            border: 1px solid var(--green-neon);
+            color: #34d399;
+        }
+
+        .result-loss {
+            background: var(--red-bg);
+            border: 1px solid var(--red-neon);
+            color: #f87171;
         }
     </style>
 </head>
 <body>
+
     <div class="header">
-        <h2>AI OTC Market Scanner</h2>
-        <div class="badge">Фильтр уверенности: 70%+</div>
+        <div class="brand">⚡ PT PRIME AI</div>
+        <div class="status-pill"><div class="dot"></div> OTC LIVE</div>
     </div>
 
-    <div class="tf-grid" id="tfGroup">
-        <button class="tf-btn" data-tf="5s">5с</button>
-        <button class="tf-btn" data-tf="15s">15с</button>
-        <button class="tf-btn" data-tf="30s">30с</button>
-        <button class="tf-btn active" data-tf="1m">1м</button>
-        <button class="tf-btn" data-tf="5m">5м</button>
+    <div class="card">
+        <div class="section-label">
+            <span>1. Выбери актив на брокере</span>
+            <span style="color: #38bdf8;">92% выплата</span>
+        </div>
+        <div class="select-wrapper">
+            <select id="pairSelect">
+                <option value="EUR/USD (OTC)">🇪🇺🇺🇸 EUR/USD (OTC)</option>
+                <option value="GBP/USD (OTC)">🇬🇧🇺🇸 GBP/USD (OTC)</option>
+                <option value="USD/JPY (OTC)">🇺🇸🇯🇵 USD/JPY (OTC)</option>
+                <option value="AUD/CAD (OTC)">🇦🇺🇨🇦 AUD/CAD (OTC)</option>
+                <option value="NZD/USD (OTC)">🇳🇿🇺🇸 NZD/USD (OTC)</option>
+                <option value="USD/CHF (OTC)">🇺🇸🇨🇭 USD/CHF (OTC)</option>
+            </select>
+            <div class="select-arrow">▼</div>
+        </div>
+
+        <div class="section-label">
+            <span>2. Экспирация свечи</span>
+        </div>
+        <div class="tf-grid">
+            <button type="button" class="tf-btn active" onclick="selectTf('1m', this)">1 MIN</button>
+            <button type="button" class="tf-btn" onclick="selectTf('3m', this)">3 MIN</button>
+            <button type="button" class="tf-btn" onclick="selectTf('5m', this)">5 MIN</button>
+        </div>
+
+        <button id="scanBtn" class="scan-btn" onclick="startScan()">
+            <span>🔍 ПРОСКАНИРОВАТЬ СВЕЧУ</span>
+        </button>
     </div>
 
-    <button class="scan-btn" id="scanBtn" onclick="startScan()">🔍 Найти сигнал (70%+)</button>
+    <div id="signalCard" class="card signal-card">
+        <div class="signal-header">
+            <div id="pairTitle" class="pair-badge">EUR/USD (OTC)</div>
+            <div id="tfBadge" class="tf-tag">TF: 1M</div>
+        </div>
 
-    <div class="result-card" id="resultCard"></div>
+        <div id="directionBadge" class="direction-box call">ВВЕРХ 🟢 (CALL)</div>
+
+        <div class="metrics-grid">
+            <div class="metric-item">
+                <div class="metric-title">ТОЧНОСТЬ ИИ</div>
+                <div id="confValue" class="metric-value">84%</div>
+                <div class="conf-bar-bg">
+                    <div id="confBar" class="conf-bar-fill" style="width: 84%;"></div>
+                </div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-title">КОТИРОВКА ВХОДА</div>
+                <div id="entryPrice" class="metric-value">1.08420</div>
+            </div>
+        </div>
+
+        <!-- Этап 1: Подготовка к открытию новой свечи -->
+        <div id="prepContainer" class="timer-panel timer-prep">
+            <div class="timer-sub">⏳ ОТКРОЙ ПАРУ НА БРОКЕРЕ! ВХОД ЧЕРЕЗ:</div>
+            <div class="timer-digits">00:<span id="prepTimer">10</span></div>
+            <div class="timer-sub">Жди 00-ю секунду для открытия новой свечи</div>
+        </div>
+
+        <!-- Этап 2: Сделка в работе -->
+        <div id="liveContainer" class="timer-panel timer-live" style="display: none;">
+            <div class="timer-sub">🟢 СДЕЛКА АКТИВНА! ДО ЗАКРЫТИЯ:</div>
+            <div class="timer-digits" id="liveTimer">01:00</div>
+            <div class="timer-sub">ИИ отслеживает закрытие свечи...</div>
+        </div>
+
+        <div id="reason" class="ai-reason"></div>
+
+        <div id="resultBanner" class="result-banner"></div>
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+        tg.setHeaderColor('#070b14');
 
-        let selectedTf = "1m";
-        let timerInterval = null;
+        let selectedTf = '1m';
+        let prepInterval, liveInterval;
 
-        document.querySelectorAll('.tf-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedTf = btn.dataset.tf;
-            });
-        });
+        function selectTf(tf, btnElement) {
+            selectedTf = tf;
+            document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
 
-        function parseTimeframeSeconds(tfStr) {
-            if (tfStr.endsWith('s')) return parseInt(tfStr);
-            if (tfStr.endsWith('m')) return parseInt(tfStr) * 60;
-            return 60;
+        function formatSeconds(sec) {
+            const m = Math.floor(sec / 60).toString().padStart(2, '0');
+            const s = (sec % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
         }
 
         async function startScan() {
             const btn = document.getElementById('scanBtn');
-            const card = document.getElementById('resultCard');
-            if (timerInterval) clearInterval(timerInterval);
+            const card = document.getElementById('signalCard');
+            const pair = document.getElementById('pairSelect').value;
+
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 
             btn.disabled = true;
-            btn.innerText = "⏳ Сканирую OTC-пары...";
-            card.style.display = "none";
+            btn.innerHTML = '<span>⏳ АНАЛИЗ ПАТТЕРНОВ И RSI...</span>';
+            card.style.display = 'none';
+            document.getElementById('resultBanner').style.display = 'none';
 
             try {
                 const res = await fetch('/api/scan', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ timeframe: selectedTf })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ pair: pair, timeframe: selectedTf })
                 });
                 const data = await res.json();
 
-                card.style.display = "block";
-                if (!data.found) {
-                    card.innerHTML = `<div style="color: #fbbf24; text-align: center;">⚠️ ${data.message}</div>`;
-                    btn.disabled = false;
-                    btn.innerText = "🔍 Найти сигнал (70%+)";
-                } else {
-                    const color = data.direction.includes('ВВЕРХ') ? '#10b981' : '#ef4444';
-                    
-                    card.innerHTML = `
-                        <div class="row"><span>Актив:</span> <b>${data.pair}</b></div>
-                        <div class="row"><span>Время сделки:</span> <b>${data.timeframe}</b></div>
-                        <div class="row"><span>Цена входа:</span> <b>${data.entry_price}</b></div>
-                        <div class="row"><span>Уверенность ИИ:</span> <b style="color:#38bdf8">${data.confidence}%</b></div>
-                        <div class="dir-box" style="color: ${color}; border: 1px solid ${color};">${data.direction}</div>
-                        <div class="live-status" id="liveBlock">
-                            <span class="pulse-dot"></span> 🔴 ПРЯМОЙ ЭФИР: До закрытия <span id="timerText" style="margin-left:4px;">--:--</span>
-                        </div>
-                        <div class="reason">💡 ${data.reason}</div>
-                        <div id="finalOutcome"></div>
-                    `;
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
-                    // Старт обратного отсчета
-                    let secondsLeft = parseTimeframeSeconds(data.timeframe);
-                    updateTimerDisplay(secondsLeft);
+                document.getElementById('pairTitle').innerText = data.pair;
+                document.getElementById('tfBadge').innerText = `TF: ${data.timeframe.toUpperCase()}`;
 
-                    timerInterval = setInterval(async () => {
-                        secondsLeft--;
-                        updateTimerDisplay(secondsLeft);
+                const badge = document.getElementById('directionBadge');
+                badge.innerText = data.direction;
+                badge.className = `direction-box ${data.direction.includes('ВВЕРХ') ? 'call' : 'put'}`;
 
-                        if (secondsLeft <= 0) {
-                            clearInterval(timerInterval);
-                            document.getElementById('liveBlock').style.display = "none";
-                            await fetchFinalResult(data.direction, data.entry_price);
-                            btn.disabled = false;
-                            btn.innerText = "🔍 Найти сигнал (70%+)";
-                        }
-                    }, 1000);
-                }
+                document.getElementById('confValue').innerText = `${data.confidence}%`;
+                document.getElementById('confBar').style.width = `${data.confidence}%`;
+                document.getElementById('entryPrice').innerText = data.entry_price;
+                document.getElementById('reason').innerText = `💡 ${data.reason}`;
+
+                card.style.display = 'block';
+                btn.innerHTML = '<span>🔍 НОВЫЙ СКАН</span>';
+
+                startPrepTimer(data);
+
             } catch (e) {
-                card.style.display = "block";
-                card.innerHTML = `<div style="color: #ef4444;">Ошибка соединения с сервером.</div>`;
+                alert("Ошибка соединения с сервером. Попробуй снова.");
+                btn.innerHTML = '<span>🔍 ПРОСКАНИРОВАТЬ СВЕЧУ</span>';
+            } finally {
                 btn.disabled = false;
-                btn.innerText = "🔍 Найти сигнал (70%+)";
             }
         }
 
-        function updateTimerDisplay(sec) {
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            const timerEl = document.getElementById('timerText');
-            if (timerEl) {
-                timerEl.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-            }
+        function startPrepTimer(signalData) {
+            clearInterval(prepInterval);
+            clearInterval(liveInterval);
+
+            let prepTime = 10;
+            const prepBox = document.getElementById('prepContainer');
+            const liveBox = document.getElementById('liveContainer');
+            const prepSpan = document.getElementById('prepTimer');
+
+            prepBox.style.display = 'block';
+            liveBox.style.display = 'none';
+            prepSpan.innerText = prepTime.toString().padStart(2, '0');
+
+            prepInterval = setInterval(() => {
+                prepTime--;
+                prepSpan.innerText = prepTime.toString().padStart(2, '0');
+                
+                if (prepTime <= 3 && prepTime > 0 && tg.HapticFeedback) {
+                    tg.HapticFeedback.impactOccurred('light');
+                }
+
+                if (prepTime <= 0) {
+                    clearInterval(prepInterval);
+                    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
+                    prepBox.style.display = 'none';
+                    startLiveTimer(signalData);
+                }
+            }, 1000);
         }
 
-        async function fetchFinalResult(direction, entryPrice) {
-            const outcomeDiv = document.getElementById('finalOutcome');
-            outcomeDiv.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:8px;">📊 Фиксация цены закрытия...</div>`;
+        function startLiveTimer(signalData) {
+            let liveTime = 60;
+            if (signalData.timeframe === '3m') liveTime = 180;
+            if (signalData.timeframe === '5m') liveTime = 300;
 
+            const liveBox = document.getElementById('liveContainer');
+            const liveSpan = document.getElementById('liveTimer');
+
+            liveBox.style.display = 'block';
+            liveSpan.innerText = formatSeconds(liveTime);
+
+            liveInterval = setInterval(() => {
+                liveTime--;
+                liveSpan.innerText = formatSeconds(liveTime);
+                if (liveTime <= 0) {
+                    clearInterval(liveInterval);
+                    liveBox.style.display = 'none';
+                    checkResult(signalData);
+                }
+            }, 1000);
+        }
+
+        async function checkResult(signalData) {
             try {
                 const res = await fetch('/api/check_result', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ direction: direction, entry_price: entryPrice })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ direction: signalData.direction, entry_price: signalData.entry_price })
                 });
-                const resData = await res.json();
-                const bgColor = resData.win ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)';
-                const textColor = resData.win ? '#10b981' : '#ef4444';
+                const result = await res.json();
+                const banner = document.getElementById('resultBanner');
+                
+                banner.innerText = `ИТОГ СДЕЛКИ: ${result.result_text}`;
+                banner.className = `result-banner ${result.win ? 'result-win' : 'result-loss'}`;
+                banner.style.display = 'block';
 
-                outcomeDiv.innerHTML = `
-                    <div class="final-result" style="background: ${bgColor}; color: ${textColor}; border: 1px solid ${textColor};">
-                        Итог сделки: ${resData.result_text}
-                        <div style="font-size:12px; font-weight:normal; margin-top:4px;">Цена фиксации: ${resData.exit_price}</div>
-                    </div>
-                `;
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred(result.win ? 'success' : 'error');
+                }
             } catch (e) {
-                outcomeDiv.innerHTML = `<div style="color: #ef4444; text-align:center;">Не удалось получить результат.</div>`;
+                console.error(e);
             }
         }
     </script>
