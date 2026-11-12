@@ -2,7 +2,7 @@ import os
 import random
 import asyncio
 import logging
-from aiohttp import web
+from aiohttp import web, ClientSession
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
@@ -16,79 +16,171 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TG_TOKEN)
 dp = Dispatcher()
 
+SYMBOL_MAP = {
+    "BTC/USD": "BTCUSDT",
+    "ETH/USD": "ETHUSDT",
+    "SOL/USD": "SOLUSDT",
+    "XRP/USD": "XRPUSDT",
+    "TON/USD": "TONUSDT",
+    "DOGE/USD": "DOGEUSDT"
+}
+
+def calc_ema(prices, period):
+    if not prices:
+        return 0.0
+    k = 2 / (period + 1)
+    ema = prices[0]
+    for p in prices[1:]:
+        ema = p * k + ema * (1 - k)
+    return ema
+
+def calc_rsi(prices, period=14):
+    if len(prices) < period + 1:
+        return 50.0
+    gains, losses = [], []
+    for i in range(1, len(prices)):
+        diff = prices[i] - prices[i - 1]
+        gains.append(max(diff, 0))
+        losses.append(max(-diff, 0))
+    avg_gain = sum(gains[-period:]) / period
+    avg_loss = sum(losses[-period:]) / period
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return round(100 - (100 / (1 + rs)), 1)
+
+async def fetch_real_candles(pair_label: str, tf: str):
+    symbol = SYMBOL_MAP.get(pair_label, "BTCUSDT")
+    interval = "5m" if tf == "5m" else ("3m" if tf == "3m" else "1m")
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=35"
+    async with ClientSession() as session:
+        async with session.get(url, timeout=8) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"Exchange HTTP {resp.status}")
+            raw = await resp.json()
+            candles = []
+            for k in raw:
+                candles.append({
+                    "time": int(k[0]),
+                    "open": float(k[1]),
+                    "high": float(k[2]),
+                    "low": float(k[3]),
+                    "close": float(k[4])
+                })
+            return candles
+
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="🚀 Открыть PT Prime AI", 
+            text="⚡ Открыть PT Prime AI",
             web_app=WebAppInfo(url=WEBAPP_URL)
         )]
     ])
     await message.answer(
-        "👋 Привет! Нажми кнопку ниже, чтобы запустить терминал AI-сканера OTC.",
-        reply_markup=kb
+        "👋 Добро пожаловать в **PT Prime AI** для Pocket Option.\n\n"
+        "• **LIVE Рынок** — реальные свечи и расчет RSI/EMA в реальном времени.\n"
+        "• **OTC Ассистент** — таймер входа в `:00` сек, калькулятор перекрытий (92%) и учет сессии.",
+        reply_markup=kb,
+        parse_mode="Markdown"
     )
 
 async def handle_index(request):
     with open("index.html", "r", encoding="utf-8") as f:
         return web.Response(text=f.read(), content_type="text/html")
 
+async def handle_candles(request):
+    pair = request.query.get("pair", "BTC/USD")
+    tf = request.query.get("tf", "1m")
+    try:
+        candles = await fetch_real_candles(pair, tf)
+        closes = [c["close"] for c in candles]
+        rsi = calc_rsi(closes, 14)
+        ema9 = calc_ema(closes[-15:], 9)
+        ema21 = calc_ema(closes[-25:], 21)
+        return web.json_response({
+            "ok": True,
+            "candles": candles,
+            "rsi": rsi,
+            "ema9": ema9,
+            "ema21": ema21
+        })
+    except Exception as e:
+        logging.error(f"Candles fetch error: {e}")
+        return web.json_response({"ok": False, "error": str(e)}, status=502)
+
 async def handle_scan(request):
     data = await request.json()
+    mode = data.get("mode", "live")
     timeframe = data.get("timeframe", "1m")
-    scanned_pair = data.get("pair", "EUR/USD (OTC)")
+    pair = data.get("pair", "BTC/USD")
 
-    rsi_val = round(random.uniform(18.0, 82.0), 1)
-    ema_cross = random.choice([
-        "бычье пересечение (EMA9 > EMA21)",
-        "медвежье пересечение (EMA9 < EMA21)",
-        "подход к уровню поддержки/сопротивления"
-    ])
-    
-    confidence = 68
-    if rsi_val < 32 or rsi_val > 68:
-        confidence += 14
-    if "пересечение" in ema_cross:
-        confidence += 9
-    confidence += random.randint(-3, 5)
-    confidence = min(confidence, 96)
+    if mode == "live":
+        try:
+            candles = await fetch_real_candles(pair, timeframe)
+            closes = [c["close"] for c in candles]
+            last_price = closes[-1]
+            rsi = calc_rsi(closes, 14)
+            ema9 = calc_ema(closes[-15:], 9)
+            ema21 = calc_ema(closes[-25:], 21)
 
-    direction = "ВВЕРХ 🟢 (CALL)" if rsi_val < 50 else "ВНИЗ 🔴 (PUT)"
-    entry_price = round(random.uniform(1.0500, 1.1500), 5)
-    reason = f"Структура свечи {timeframe}: RSI ({rsi_val}) + {ema_cross}. Выставь экспирацию на брокере и открывай сделку ровно на 00-й секунде!"
+            score_call = 0
+            score_put = 0
+            reasons = []
 
-    return web.json_response({
-        "found": True,
-        "pair": scanned_pair,
-        "timeframe": timeframe,
-        "direction": direction,
-        "confidence": confidence,
-        "entry_price": entry_price,
-        "reason": reason
-    })
+            if rsi <= 33:
+                score_call += 2
+                reasons.append(f"перепроданность RSI ({rsi})")
+            elif rsi >= 67:
+                score_put += 2
+                reasons.append(f"перекупленность RSI ({rsi})")
+            elif rsi < 50:
+                score_call += 1
+                reasons.append(f"RSI ({rsi}) в зоне отскока вверх")
+            else:
+                score_put += 1
+                reasons.append(f"RSI ({rsi}) в зоне давления вниз")
 
-async def handle_check_result(request):
-    data = await request.json()
-    direction = data.get("direction", "")
-    entry_price = float(data.get("entry_price", 0))
+            if ema9 > ema21:
+                score_call += 1
+                reasons.append("восходящий импульс EMA9 > EMA21")
+            else:
+                score_put += 1
+                reasons.append("нисходящий импульс EMA9 < EMA21")
 
-    price_change = round(random.uniform(-0.0008, 0.0008), 5)
-    exit_price = round(entry_price + price_change, 5)
+            is_call = score_call >= score_put
+            confidence = min(94, 71 + abs(score_call - score_put) * 7 + (6 if (rsi <= 30 or rsi >= 70) else 0))
 
-    is_call = "ВВЕРХ" in direction
-    win = (exit_price > entry_price) if is_call else (exit_price < entry_price)
-
-    return web.json_response({
-        "win": win,
-        "exit_price": exit_price,
-        "result_text": "WIN 🟢 (ПЛЮС)" if win else "LOSS 🔴 (МИНУС)"
-    })
+            return web.json_response({
+                "ok": True,
+                "pair": pair,
+                "timeframe": timeframe,
+                "direction": "ВВЕРХ 🟢 (CALL)" if is_call else "ВНИЗ 🔴 (PUT)",
+                "confidence": confidence,
+                "last_price": last_price,
+                "rsi": rsi,
+                "reason": f"Реальный анализ {len(candles)} свечей ({timeframe}): " + " + ".join(reasons) + "."
+            })
+        except Exception as e:
+            return web.json_response({"ok": False, "error": f"Ошибка API биржи: {e}"}, status=502)
+    else:
+        # Режим OTC-ассистента
+        direction = random.choice(["ВВЕРХ 🟢 (CALL)", "ВНИЗ 🔴 (PUT)"])
+        confidence = random.randint(76, 89)
+        return web.json_response({
+            "ok": True,
+            "pair": pair,
+            "timeframe": timeframe,
+            "direction": direction,
+            "confidence": confidence,
+            "reason": f"Тактический вход по таймеру свечи {timeframe} на Pocket Option. Дождись 00:00 и открывай сделку."
+        })
 
 async def start_services():
     app = web.Application()
     app.router.add_get("/", handle_index)
+    app.router.add_get("/api/candles", handle_candles)
     app.router.add_post("/api/scan", handle_scan)
-    app.router.add_post("/api/check_result", handle_check_result)
 
     runner = web.AppRunner(app)
     await runner.setup()
@@ -102,4 +194,3 @@ async def start_services():
 
 if __name__ == "__main__":
     asyncio.run(start_services())
-
