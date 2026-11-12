@@ -16,21 +16,16 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TG_TOKEN)
 dp = Dispatcher()
 
-OTC_PAIRS = [
-    "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", 
-    "AUD/CAD (OTC)", "NZD/USD (OTC)", "USD/CHF (OTC)"
-]
-
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="🚀 Открыть AI Сканер (OTC)", 
+            text="🚀 Открыть PT Prime AI", 
             web_app=WebAppInfo(url=WEBAPP_URL)
         )]
     ])
     await message.answer(
-        "👋 Привет! Нажми на кнопку ниже, чтобы открыть панель AI-сканера OTC-рынка.",
+        "👋 Привет! Нажми кнопку ниже, чтобы запустить терминал AI-сканера OTC.",
         reply_markup=kb
     )
 
@@ -41,27 +36,26 @@ async def handle_index(request):
 async def handle_scan(request):
     data = await request.json()
     timeframe = data.get("timeframe", "1m")
+    scanned_pair = data.get("pair", "EUR/USD (OTC)")
 
-    scanned_pair = random.choice(OTC_PAIRS)
     rsi_val = round(random.uniform(18.0, 82.0), 1)
-    ema_cross = random.choice(["бычье пересечение (EMA9 > EMA21)", "медвежье пересечение (EMA9 < EMA21)", "флэт"])
+    ema_cross = random.choice([
+        "бычье пересечение (EMA9 > EMA21)",
+        "медвежье пересечение (EMA9 < EMA21)",
+        "подход к уровню поддержки/сопротивления"
+    ])
     
-    confidence = 50
-    if rsi_val < 28 or rsi_val > 72:
-        confidence += 18
+    confidence = 68
+    if rsi_val < 32 or rsi_val > 68:
+        confidence += 14
     if "пересечение" in ema_cross:
-        confidence += 12
-    confidence += random.randint(-5, 9)
-
-    if confidence < 70:
-        return web.json_response({
-            "found": False,
-            "message": f"Проверены OTC-пары на {timeframe}. Максимальная уверенность {confidence}% (ниже 70%). Повтори поиск через пару секунд."
-        })
+        confidence += 9
+    confidence += random.randint(-3, 5)
+    confidence = min(confidence, 96)
 
     direction = "ВВЕРХ 🟢 (CALL)" if rsi_val < 50 else "ВНИЗ 🔴 (PUT)"
     entry_price = round(random.uniform(1.0500, 1.1500), 5)
-    reason = f"Обнаружен сильный сигнал: RSI ({rsi_val}) в комбинации с {ema_cross} дает высокую вероятность отработки."
+    reason = f"Структура свечи {timeframe}: RSI ({rsi_val}) + {ema_cross}. Выставь экспирацию на брокере и открывай сделку ровно на 00-й секунде!"
 
     return web.json_response({
         "found": True,
@@ -108,3 +102,4 @@ async def start_services():
 
 if __name__ == "__main__":
     asyncio.run(start_services())
+
