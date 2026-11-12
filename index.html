@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI OTC Scanner</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: #38bdf8;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+        .tf-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px;
+        }
+        .tf-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            padding: 12px 0;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .tf-btn.active {
+            background: #0284c7;
+            border-color: #38bdf8;
+            color: #ffffff;
+        }
+        .scan-btn {
+            width: 100%;
+            max-width: 400px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            color: white;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .scan-btn:disabled {
+            background: #475569;
+        }
+        .result-card {
+            width: 100%;
+            max-width: 400px;
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 18px;
+            margin-top: 20px;
+            box-sizing: border-box;
+            border: 1px solid #334155;
+            display: none;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        .dir-box {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            padding: 12px;
+            border-radius: 10px;
+            margin: 12px 0;
+            background: #0f172a;
+        }
+        .live-status {
+            text-align: center;
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 12px 0;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .final-result {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 14px;
+            border-radius: 12px;
+            margin-top: 14px;
+        }
+        .reason {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.4;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>AI OTC Market Scanner</h2>
+        <div class="badge">Фильтр уверенности: 70%+</div>
+    </div>
+
+    <div class="tf-grid" id="tfGroup">
+        <button class="tf-btn" data-tf="5s">5с</button>
+        <button class="tf-btn" data-tf="15s">15с</button>
+        <button class="tf-btn" data-tf="30s">30с</button>
+        <button class="tf-btn active" data-tf="1m">1м</button>
+        <button class="tf-btn" data-tf="5m">5м</button>
+    </div>
+
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">🔍 Найти сигнал (70%+)</button>
+
+    <div class="result-card" id="resultCard"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let selectedTf = "1m";
+        let timerInterval = null;
+
+        document.querySelectorAll('.tf-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedTf = btn.dataset.tf;
+            });
+        });
+
+        function parseTimeframeSeconds(tfStr) {
+            if (tfStr.endsWith('s')) return parseInt(tfStr);
+            if (tfStr.endsWith('m')) return parseInt(tfStr) * 60;
+            return 60;
+        }
+
+        async function startScan() {
+            const btn = document.getElementById('scanBtn');
+            const card = document.getElementById('resultCard');
+            if (timerInterval) clearInterval(timerInterval);
+
+            btn.disabled = true;
+            btn.innerText = "⏳ Сканирую OTC-пары...";
+            card.style.display = "none";
+
+            try {
+                const res = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ timeframe: selectedTf })
+                });
+                const data = await res.json();
+
+                card.style.display = "block";
+                if (!data.found) {
+                    card.innerHTML = `<div style="color: #fbbf24; text-align: center;">⚠️ ${data.message}</div>`;
+                    btn.disabled = false;
+                    btn.innerText = "🔍 Найти сигнал (70%+)";
+                } else {
+                    const color = data.direction.includes('ВВЕРХ') ? '#10b981' : '#ef4444';
+                    
+                    card.innerHTML = `
+                        <div class="row"><span>Актив:</span> <b>${data.pair}</b></div>
+                        <div class="row"><span>Время сделки:</span> <b>${data.timeframe}</b></div>
+                        <div class="row"><span>Цена входа:</span> <b>${data.entry_price}</b></div>
+                        <div class="row"><span>Уверенность ИИ:</span> <b style="color:#38bdf8">${data.confidence}%</b></div>
+                        <div class="dir-box" style="color: ${color}; border: 1px solid ${color};">${data.direction}</div>
+                        <div class="live-status" id="liveBlock">
+                            <span class="pulse-dot"></span> 🔴 ПРЯМОЙ ЭФИР: До закрытия <span id="timerText" style="margin-left:4px;">--:--</span>
+                        </div>
+                        <div class="reason">💡 ${data.reason}</div>
+                        <div id="finalOutcome"></div>
+                    `;
+
+                    // Старт обратного отсчета
+                    let secondsLeft = parseTimeframeSeconds(data.timeframe);
+                    updateTimerDisplay(secondsLeft);
+
+                    timerInterval = setInterval(async () => {
+                        secondsLeft--;
+                        updateTimerDisplay(secondsLeft);
+
+                        if (secondsLeft <= 0) {
+                            clearInterval(timerInterval);
+                            document.getElementById('liveBlock').style.display = "none";
+                            await fetchFinalResult(data.direction, data.entry_price);
+                            btn.disabled = false;
+                            btn.innerText = "🔍 Найти сигнал (70%+)";
+                        }
+                    }, 1000);
+                }
+            } catch (e) {
+                card.style.display = "block";
+                card.innerHTML = `<div style="color: #ef4444;">Ошибка соединения с сервером.</div>`;
+                btn.disabled = false;
+                btn.innerText = "🔍 Найти сигнал (70%+)";
+            }
+        }
+
+        function updateTimerDisplay(sec) {
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            const timerEl = document.getElementById('timerText');
+            if (timerEl) {
+                timerEl.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            }
+        }
+
+        async function fetchFinalResult(direction, entryPrice) {
+            const outcomeDiv = document.getElementById('finalOutcome');
+            outcomeDiv.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:8px;">📊 Фиксация цены закрытия...</div>`;
+
+            try {
+                const res = await fetch('/api/check_result', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ direction: direction, entry_price: entryPrice })
+                });
+                const resData = await res.json();
+                const bgColor = resData.win ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+                const textColor = resData.win ? '#10b981' : '#ef4444';
+
+                outcomeDiv.innerHTML = `
+                    <div class="final-result" style="background: ${bgColor}; color: ${textColor}; border: 1px solid ${textColor};">
+                        Итог сделки: ${resData.result_text}
+                        <div style="font-size:12px; font-weight:normal; margin-top:4px;">Цена фиксации: ${resData.exit_price}</div>
+                    </div>
+                `;
+            } catch (e) {
+                outcomeDiv.innerHTML = `<div style="color: #ef4444; text-align:center;">Не удалось получить результат.</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
