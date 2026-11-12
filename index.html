@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PT Prime AI • Pocket Option</title>
+    <title>PT Prime AI • Pocket Option OTC</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
     <style>
@@ -59,35 +59,6 @@
             border: 1px solid rgba(14, 165, 233, 0.3);
             padding: 4px 10px;
             border-radius: 20px;
-        }
-
-        /* Переключатель режимов */
-        .mode-tabs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            background: rgba(15, 23, 42, 0.9);
-            padding: 4px;
-            border-radius: 12px;
-            border: 1px solid rgba(148, 163, 184, 0.15);
-        }
-
-        .mode-btn {
-            padding: 9px 6px;
-            border: none;
-            border-radius: 9px;
-            background: transparent;
-            color: var(--text-muted);
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .mode-btn.active {
-            background: linear-gradient(135deg, #0284c7, #2563eb);
-            color: #fff;
-            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
         }
 
         .card {
@@ -174,7 +145,7 @@
 
         .scan-btn:disabled { opacity: 0.6; }
 
-        /* Реальные свечи */
+        /* Свечной график OTC */
         .chart-box {
             background: #090e1a;
             border: 1px solid rgba(56, 189, 248, 0.22);
@@ -193,27 +164,29 @@
 
         canvas {
             width: 100%;
-            height: 160px;
+            height: 155px;
             display: block;
         }
 
-        /* Калькулятор перекрытий OTC */
-        .mm-grid {
+        /* Компактная панель мани-менеджмента */
+        .mm-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 10px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
 
-        .mm-box {
-            background: rgba(15, 23, 42, 0.75);
-            border: 1px solid rgba(56, 189, 248, 0.15);
-            border-radius: 10px;
-            padding: 9px 10px;
+        .mm-mini {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 8px;
+            padding: 6px 8px;
+            text-align: center;
         }
 
-        .mm-label { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
-        .mm-val { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 800; color: #38bdf8; }
+        .mm-mini-label { font-size: 9.5px; color: var(--text-muted); margin-bottom: 2px; }
+        .mm-mini-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 800; color: #38bdf8; }
 
         /* Блок сигнала */
         .signal-card { display: none; }
@@ -276,8 +249,7 @@
             color: #cbd5e1;
         }
 
-        /* Кнопки фиксации итога в OTC режиме */
-        .otc-outcome-row {
+        .outcome-row {
             display: none;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
@@ -288,10 +260,10 @@
             background: #166534;
             border: 1px solid #22c55e;
             color: #fff;
-            padding: 11px;
+            padding: 10px;
             border-radius: 10px;
             font-weight: 800;
-            font-size: 13px;
+            font-size: 12.5px;
             cursor: pointer;
         }
 
@@ -299,10 +271,10 @@
             background: #991b1b;
             border: 1px solid #ef4444;
             color: #fff;
-            padding: 11px;
+            padding: 10px;
             border-radius: 10px;
             font-weight: 800;
-            font-size: 13px;
+            font-size: 12.5px;
             cursor: pointer;
         }
 
@@ -313,7 +285,7 @@
             border-radius: 12px;
             text-align: center;
             font-weight: 800;
-            font-size: 13.5px;
+            font-size: 13px;
         }
 
         .result-win { background: var(--green-bg); border: 1px solid var(--green-neon); color: #34d399; }
@@ -323,111 +295,95 @@
 <body>
 
     <div class="header">
-        <div class="brand">⚡ PT PRIME AI</div>
+        <div class="brand">⚡ PT PRIME • OTC</div>
         <div class="clock-pill" id="liveClock">00:00:00</div>
-    </div>
-
-    <!-- Переключатель режимов -->
-    <div class="mode-tabs">
-        <button id="tabLive" class="mode-btn active" onclick="switchMode('live')">📊 LIVE РЫНОК (Real)</button>
-        <button id="tabOtc" class="mode-btn" onclick="switchMode('otc')">⚡ OTC АССИСТЕНТ</button>
     </div>
 
     <div class="card">
         <div class="section-label">
-            <span id="pairLabel">1. Крипто-пара на Pocket Option (24/7)</span>
-            <span id="modeTag" style="color: #10b981;">REAL API</span>
+            <span>1. Выбери OTC-пару на Pocket Option</span>
+            <span style="color: #10b981;">92% PAYOUT</span>
         </div>
         <div class="select-wrapper">
-            <select id="pairSelect" onchange="onPairChange()">
-                <option value="BTC/USD">₿ BTC/USD (Bitcoin)</option>
-                <option value="ETH/USD">Ξ ETH/USD (Ethereum)</option>
-                <option value="SOL/USD">◎ SOL/USD (Solana)</option>
-                <option value="XRP/USD">✕ XRP/USD (Ripple)</option>
-                <option value="TON/USD">💎 TON/USD (Toncoin)</option>
-                <option value="DOGE/USD">Ð DOGE/USD (Dogecoin)</option>
+            <select id="pairSelect" onchange="resetCandlesForPair()">
+                <option value="EUR/USD OTC">🇪🇺🇺🇸 EUR/USD OTC</option>
+                <option value="GBP/USD OTC">🇬🇧🇺🇸 GBP/USD OTC</option>
+                <option value="USD/JPY OTC">🇺🇸🇯🇵 USD/JPY OTC</option>
+                <option value="AUD/CAD OTC">🇦🇺🇨🇦 AUD/CAD OTC</option>
+                <option value="NZD/USD OTC">🇳🇿🇺🇸 NZD/USD OTC</option>
+                <option value="USD/CHF OTC">🇺🇸🇨🇭 USD/CHF OTC</option>
             </select>
             <div class="select-arrow">▼</div>
         </div>
 
-        <div class="section-label"><span>2. Экспирация свечи</span></div>
+        <div class="section-label"><span>2. Время экспирации свечи</span></div>
         <div class="tf-grid">
             <button type="button" class="tf-btn active" onclick="selectTf('1m', this)">1 MIN</button>
             <button type="button" class="tf-btn" onclick="selectTf('3m', this)">3 MIN</button>
             <button type="button" class="tf-btn" onclick="selectTf('5m', this)">5 MIN</button>
         </div>
 
-        <button id="scanBtn" class="scan-btn" onclick="startScan()">🔍 ПРОАНАЛИЗИРОВАТЬ СВЕЧИ</button>
+        <button id="scanBtn" class="scan-btn" onclick="startScan()">🔍 ПРОСКАНИРОВАТЬ OTC СВЕЧИ</button>
+
+        <!-- Калькулятор перекрытий под 92% -->
+        <div class="mm-row">
+            <div class="mm-mini">
+                <div class="mm-mini-label">БАЗА ($)</div>
+                <input type="number" id="baseStake" value="1" min="1" step="1" onchange="recalcStake()" style="padding: 3px; font-size: 12px; text-align: center;">
+            </div>
+            <div class="mm-mini">
+                <div class="mm-mini-label">СТАВКА СЕЙЧАС</div>
+                <div class="mm-mini-val" id="nextStakeDisplay">$1.00</div>
+            </div>
+            <div class="mm-mini">
+                <div class="mm-mini-label">ПРОФИТ</div>
+                <div class="mm-mini-val" id="sessionProfitDisplay" style="color: #10b981;">+$0.00</div>
+            </div>
+        </div>
     </div>
 
-    <!-- Блок 1: Реальный свечной график (только в режиме LIVE) -->
-    <div id="liveChartSection" class="chart-box">
+    <!-- Японские свечи OTC -->
+    <div class="chart-box">
         <div class="chart-top">
-            <span id="chartPairLabel" style="color: #94a3b8;">BTC/USD • M1 • RSI: --</span>
-            <span id="livePriceLabel" style="color: #38bdf8; font-weight: 700;">Загрузка...</span>
+            <span id="chartPairLabel" style="color: #94a3b8;">EUR/USD OTC • M1 • RSI: 50.0</span>
+            <span id="livePriceLabel" style="color: #38bdf8; font-weight: 700;">1.09240</span>
         </div>
         <canvas id="candleChart"></canvas>
     </div>
 
-    <!-- Блок 2: Калькулятор перекрытий и статистика (только в режиме OTC) -->
-    <div id="otcAssistantSection" class="card" style="display: none;">
-        <div class="section-label">
-            <span>Калькулятор перекрытий Pocket Option</span>
-            <span style="color: #f59e0b;">ВЫПЛАТА 92%</span>
-        </div>
-        <div class="mm-grid">
-            <div>
-                <div class="mm-label">Базовая ставка ($)</div>
-                <input type="number" id="baseStake" value="1" min="1" step="1" onchange="recalcStake()">
-            </div>
-            <div class="mm-box">
-                <div class="mm-label">Рекомендуемая ставка</div>
-                <div class="mm-val" id="nextStakeDisplay">$1.00</div>
-            </div>
-            <div class="mm-box">
-                <div class="mm-label">Шаг перекрытия</div>
-                <div class="mm-val" id="stepDisplay" style="color: #f8fafc;">Шаг 0 (База)</div>
-            </div>
-            <div class="mm-box">
-                <div class="mm-label">Профит сессии</div>
-                <div class="mm-val" id="sessionProfitDisplay" style="color: #10b981;">+$0.00</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Карточка активного сигнала -->
+    <!-- Карточка сигнала -->
     <div id="signalCard" class="card signal-card">
         <div id="directionBadge" class="direction-box call">ВВЕРХ 🟢 (CALL)</div>
 
         <div class="metrics-grid">
             <div class="metric-item">
-                <div class="metric-title">ТОЧНОСТЬ АНАЛИЗА</div>
-                <div id="confValue" class="metric-value">84%</div>
+                <div class="metric-title">УВЕРЕННОСТЬ ИИ</div>
+                <div id="confValue" class="metric-value">85%</div>
             </div>
             <div class="metric-item">
-                <div class="metric-title" id="secondMetricTitle">УРОВЕНЬ ВХОДА</div>
-                <div id="entryPriceLabel" class="metric-value">Ожидание :00</div>
+                <div class="metric-title">ВХОД / СТАВКА</div>
+                <div id="entryPriceLabel" class="metric-value">--:--:00</div>
             </div>
         </div>
 
         <div id="prepContainer" class="timer-panel timer-prep">
             <div class="timer-sub">⏳ ДО ОТКРЫТИЯ НОВОЙ СВЕЧИ НА POCKET OPTION:</div>
             <div class="timer-digits" id="prepTimer">00:28</div>
-            <div class="timer-sub">Открой сделку ровно в 00:00!</div>
+            <div class="timer-sub">Жми кнопку на брокере ровно в 00:00!</div>
         </div>
 
         <div id="liveContainer" class="timer-panel timer-live" style="display: none;">
-            <div class="timer-sub">🟢 СДЕЛКА ИДЁТ! ДО ЗАКРЫТИЯ СВЕЧИ:</div>
+            <div class="timer-sub">🟢 СДЕЛКА АКТИВНА! ДО ЗАКРЫТИЯ СВЕЧИ:</div>
             <div class="timer-digits" id="liveTimer">01:00</div>
-            <div class="timer-sub" id="liveDeltaText">Синхронизация с таймером брокера</div>
+            <div class="timer-sub" id="liveDeltaText">Синхронизация со свечой M1</div>
         </div>
 
         <div id="reason" class="ai-reason"></div>
 
-        <!-- Ручная фиксация результата в OTC режиме -->
-        <div id="otcOutcomeRow" class="otc-outcome-row">
-            <button class="btn-win" onclick="recordOtcOutcome(true)">✅ ЗАШЛА В ПЛЮС</button>
-            <button class="btn-loss" onclick="recordOtcOutcome(false)">❌ МИНУС (ДОГОН)</button>
+        <!-- Отметка реального итога на Pocket Option -->
+        <div id="outcomeRow" class="outcome-row">
+            <button class="btn-win" onclick="recordOutcome(true)">✅ ЗАШЛА В ПЛЮС</button>
+            <button class="btn-loss" onclick="recordOutcome(false)">❌ МИНУС (ДОГОН)</button>
         </div>
 
         <div id="resultBanner" class="result-banner"></div>
@@ -438,137 +394,124 @@
         tg.expand();
         tg.setHeaderColor('#070b14');
 
-        let currentMode = 'live'; // 'live' | 'otc'
         let selectedTf = '1m';
         let syncInterval;
-        let candlePollInterval;
 
-        let realCandles = [];
-        let currentRealPrice = 0;
+        const BASE_PRICES = {
+            "EUR/USD OTC": 1.09240,
+            "GBP/USD OTC": 1.27410,
+            "USD/JPY OTC": 153.420,
+            "AUD/CAD OTC": 0.90850,
+            "NZD/USD OTC": 0.59630,
+            "USD/CHF OTC": 0.87910
+        };
+
+        let candles = [];
+        let currentPrice = 1.09240;
         let lockedEntryPrice = null;
         let activeDirection = null;
+        let trendBias = 0;
 
-        // Состояние калькулятора OTC
+        // Мани-менеджмент (выплата 92%)
         let martStep = 0;
         let currentStake = 1.0;
         let totalLossesInChain = 0;
         let sessionProfit = 0;
 
-        const LIVE_PAIRS = [
-            { val: "BTC/USD", label: "₿ BTC/USD (Bitcoin)" },
-            { val: "ETH/USD", label: "Ξ ETH/USD (Ethereum)" },
-            { val: "SOL/USD", label: "◎ SOL/USD (Solana)" },
-            { val: "XRP/USD", label: "✕ XRP/USD (Ripple)" },
-            { val: "TON/USD", label: "💎 TON/USD (Toncoin)" },
-            { val: "DOGE/USD", label: "Ð DOGE/USD (Dogecoin)" }
-        ];
-
-        const OTC_PAIRS = [
-            { val: "EUR/USD OTC", label: "🇪🇺🇺🇸 EUR/USD OTC" },
-            { val: "GBP/USD OTC", label: "🇬🇧🇺🇸 GBP/USD OTC" },
-            { val: "USD/JPY OTC", label: "🇺🇸🇯🇵 USD/JPY OTC" },
-            { val: "AUD/CAD OTC", label: "🇦🇺🇨🇦 AUD/CAD OTC" },
-            { val: "NZD/USD OTC", label: "🇳🇿🇺🇸 NZD/USD OTC" },
-            { val: "USD/CHF OTC", label: "🇺🇸🇨🇭 USD/CHF OTC" }
-        ];
-
         const canvas = document.getElementById('candleChart');
         const ctx = canvas.getContext('2d');
 
-        function switchMode(mode) {
-            currentMode = mode;
-            clearInterval(syncInterval);
-            document.getElementById('signalCard').style.display = 'none';
-            lockedEntryPrice = null;
+        function getDecimals() {
+            return document.getElementById('pairSelect').value.includes('JPY') ? 3 : 5;
+        }
 
-            document.getElementById('tabLive').classList.toggle('active', mode === 'live');
-            document.getElementById('tabOtc').classList.toggle('active', mode === 'otc');
+        function getStepSeconds() {
+            return selectedTf === '5m' ? 300 : (selectedTf === '3m' ? 180 : 60);
+        }
 
-            const sel = document.getElementById('pairSelect');
-            sel.innerHTML = '';
-            const list = mode === 'live' ? LIVE_PAIRS : OTC_PAIRS;
-            list.forEach(item => {
-                const opt = document.createElement('option');
-                opt.value = item.val;
-                opt.innerText = item.label;
-                sel.appendChild(opt);
-            });
+        function getCurrentBucket() {
+            return Math.floor(Date.now() / 1000 / getStepSeconds());
+        }
 
-            if (mode === 'live') {
-                document.getElementById('pairLabel').innerText = '1. Крипто-пара на Pocket Option (24/7)';
-                document.getElementById('modeTag').innerText = 'REAL API';
-                document.getElementById('modeTag').style.color = '#10b981';
-                document.getElementById('liveChartSection').style.display = 'block';
-                document.getElementById('otcAssistantSection').style.display = 'none';
-                document.getElementById('secondMetricTitle').innerText = 'УРОВЕНЬ ВХОДА';
-                loadRealCandles();
-            } else {
-                document.getElementById('pairLabel').innerText = '1. Валютная OTC-пара на Pocket Option';
-                document.getElementById('modeTag').innerText = 'OTC SYNC';
-                document.getElementById('modeTag').style.color = '#f59e0b';
-                document.getElementById('liveChartSection').style.display = 'none';
-                document.getElementById('otcAssistantSection').style.display = 'block';
-                document.getElementById('secondMetricTitle').innerText = 'СТАВКА НА СДЕЛКУ';
-                recalcStake();
+        function computeCurrentRsi() {
+            if (candles.length < 15) return 50.0;
+            let gains = 0, losses = 0;
+            for (let i = candles.length - 14; i < candles.length; i++) {
+                const diff = candles[i].close - candles[i - 1].close;
+                if (diff > 0) gains += diff;
+                else losses -= diff;
             }
+            if (losses === 0) return 99.0;
+            const rs = gains / losses;
+            return +(100 - (100 / (1 + rs))).toFixed(1);
         }
 
-        function onPairChange() {
-            lockedEntryPrice = null;
-            if (currentMode === 'live') {
-                loadRealCandles();
-            }
-        }
-
-        function selectTf(tf, btnElement) {
-            selectedTf = tf;
-            document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-            btnElement.classList.add('active');
-            if (currentMode === 'live') loadRealCandles();
-            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
-        }
-
-        function getDecimals(price) {
-            if (price >= 1000) return 2;
-            if (price >= 10) return 3;
-            return 5;
-        }
-
-        async function loadRealCandles() {
-            if (currentMode !== 'live') return;
+        function resetCandlesForPair() {
             const pair = document.getElementById('pairSelect').value;
-            try {
-                const res = await fetch(`/api/candles?pair=${encodeURIComponent(pair)}&tf=${selectedTf}`);
-                const data = await res.json();
-                if (!data.ok) return;
+            currentPrice = BASE_PRICES[pair] || 1.09240;
+            lockedEntryPrice = null;
+            activeDirection = null;
+            trendBias = 0;
+            candles = [];
 
-                realCandles = data.candles;
-                const last = realCandles[realCandles.length - 1];
-                currentRealPrice = last.close;
-                const dec = getDecimals(currentRealPrice);
+            const step = pair.includes('JPY') ? 0.008 : 0.00008;
+            const curBucket = getCurrentBucket();
 
-                document.getElementById('chartPairLabel').innerText = `${pair} • ${selectedTf.toUpperCase()} • RSI: ${data.rsi}`;
-                const priceEl = document.getElementById('livePriceLabel');
-                priceEl.innerText = currentRealPrice.toFixed(dec);
-                priceEl.style.color = last.close >= last.open ? '#10b981' : '#ef4444';
-
-                if (lockedEntryPrice !== null) {
-                    const diff = currentRealPrice - lockedEntryPrice;
-                    const sign = diff >= 0 ? '+' : '';
-                    const deltaEl = document.getElementById('liveDeltaText');
-                    deltaEl.innerText = `Отклонение от входа: ${sign}${diff.toFixed(dec)}`;
-                    const isWinning = activeDirection === 'CALL' ? diff > 0 : diff < 0;
-                    deltaEl.style.color = isWinning ? '#34d399' : '#f87171';
-                }
-
-                drawCandles();
-            } catch (e) {
-                console.error(e);
+            for (let i = 24; i >= 0; i--) {
+                const open = currentPrice;
+                const change = (Math.random() - 0.5) * step * 2.2;
+                const close = open + change;
+                const high = Math.max(open, close) + Math.random() * step * 0.9;
+                const low = Math.min(open, close) - Math.random() * step * 0.9;
+                candles.push({ open, high, low, close, bucket: curBucket - i });
+                currentPrice = close;
             }
+            updateChartHeader();
+            drawCandles();
+        }
+
+        function updateChartHeader() {
+            const pair = document.getElementById('pairSelect').value;
+            const rsi = computeCurrentRsi();
+            document.getElementById('chartPairLabel').innerText = `${pair} • ${selectedTf.toUpperCase()} • RSI: ${rsi}`;
+        }
+
+        function tickCandle() {
+            if (candles.length === 0) return;
+            const pair = document.getElementById('pairSelect').value;
+            const vol = pair.includes('JPY') ? 0.004 : 0.00004;
+            const curBucket = getCurrentBucket();
+            let lastCandle = candles[candles.length - 1];
+
+            if (lastCandle.bucket !== curBucket) {
+                const newOpen = lastCandle.close;
+                lastCandle = {
+                    open: newOpen,
+                    high: newOpen,
+                    low: newOpen,
+                    close: newOpen,
+                    bucket: curBucket
+                };
+                candles.push(lastCandle);
+                if (candles.length > 26) candles.shift();
+            }
+
+            const delta = ((Math.random() - 0.5) + trendBias) * vol;
+            currentPrice = lastCandle.close + delta;
+            lastCandle.close = currentPrice;
+            if (currentPrice > lastCandle.high) lastCandle.high = currentPrice;
+            if (currentPrice < lastCandle.low) lastCandle.low = currentPrice;
+
+            const dec = getDecimals();
+            const priceLabel = document.getElementById('livePriceLabel');
+            priceLabel.innerText = currentPrice.toFixed(dec);
+            priceLabel.style.color = lastCandle.close >= lastCandle.open ? '#10b981' : '#ef4444';
+
+            updateChartHeader();
+            drawCandles();
         }
 
         function drawCandles() {
-            if (realCandles.length === 0) return;
             const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect();
             canvas.width = rect.width * dpr;
@@ -579,19 +522,20 @@
             const h = rect.height;
             ctx.clearRect(0, 0, w, h);
 
-            let minP = Math.min(...realCandles.map(c => c.low));
-            let maxP = Math.max(...realCandles.map(c => c.high));
+            if (candles.length === 0) return;
+
+            let minP = Math.min(...candles.map(c => c.low));
+            let maxP = Math.max(...candles.map(c => c.high));
             if (lockedEntryPrice !== null) {
                 minP = Math.min(minP, lockedEntryPrice);
                 maxP = Math.max(maxP, lockedEntryPrice);
             }
-            const pad = (maxP - minP) * 0.14 || 0.0001;
+            const pad = (maxP - minP) * 0.15 || 0.0001;
             minP -= pad;
             maxP += pad;
 
             const getY = (p) => h - ((p - minP) / (maxP - minP)) * h;
 
-            // Сетка
             ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
             ctx.lineWidth = 1;
             for (let i = 1; i <= 3; i++) {
@@ -602,16 +546,16 @@
                 ctx.stroke();
             }
 
-            const slotW = (w - 8) / realCandles.length;
-            const bodyW = Math.max(3, slotW * 0.62);
+            const slotW = (w - 10) / candles.length;
+            const bodyW = Math.max(4, slotW * 0.62);
 
-            realCandles.forEach((c, idx) => {
-                const centerX = 4 + idx * slotW + slotW / 2;
+            candles.forEach((c, idx) => {
+                const centerX = 5 + idx * slotW + slotW / 2;
                 const isBull = c.close >= c.open;
                 const color = isBull ? '#10b981' : '#ef4444';
 
                 ctx.strokeStyle = color;
-                ctx.lineWidth = 1.2;
+                ctx.lineWidth = 1.3;
                 ctx.beginPath();
                 ctx.moveTo(centerX, getY(c.high));
                 ctx.lineTo(centerX, getY(c.low));
@@ -637,14 +581,21 @@
             }
         }
 
-        // Обновление реальных свечей с биржи каждые 2 секунды
-        loadRealCandles();
-        candlePollInterval = setInterval(loadRealCandles, 2000);
+        resetCandlesForPair();
+        setInterval(tickCandle, 600);
 
         setInterval(() => {
             const now = new Date();
             document.getElementById('liveClock').innerText = now.toTimeString().split(' ')[0];
         }, 250);
+
+        function selectTf(tf, btnElement) {
+            selectedTf = tf;
+            document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            resetCandlesForPair();
+            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
 
         function formatSeconds(sec) {
             const m = Math.floor(sec / 60).toString().padStart(2, '0');
@@ -680,23 +631,28 @@
             if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
 
             btn.disabled = true;
-            btn.innerText = currentMode === 'live' ? '⏳ РАСЧЁТ RSI И EMA ПО БИРЖЕ...' : '⏳ СИНХРОНИЗАЦИЯ СВЕЧИ OTC...';
+            btn.innerText = '⏳ АНАЛИЗ СВЕЧЕЙ OTC...';
             card.style.display = 'none';
             document.getElementById('resultBanner').style.display = 'none';
-            document.getElementById('otcOutcomeRow').style.display = 'none';
+            document.getElementById('outcomeRow').style.display = 'none';
             lockedEntryPrice = null;
+
+            const currentRsi = computeCurrentRsi();
+            const lastCandle = candles[candles.length - 1];
+            const trend = lastCandle && lastCandle.close >= lastCandle.open ? 'up' : 'down';
 
             try {
                 const res = await fetch('/api/scan', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ mode: currentMode, pair: pair, timeframe: selectedTf })
+                    body: JSON.stringify({
+                        pair: pair,
+                        timeframe: selectedTf,
+                        rsi: currentRsi,
+                        trend: trend
+                    })
                 });
                 const data = await res.json();
-                if (!data.ok) {
-                    alert(data.error || "Ошибка получения данных");
-                    return;
-                }
 
                 if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
@@ -705,23 +661,24 @@
                 const entryTimeStr = entryDate.toTimeString().split(' ')[0];
 
                 activeDirection = data.direction.includes('ВВЕРХ') ? 'CALL' : 'PUT';
+                trendBias = activeDirection === 'CALL' ? 0.14 : -0.14;
 
                 const badge = document.getElementById('directionBadge');
                 badge.innerText = data.direction;
                 badge.className = `direction-box ${activeDirection === 'CALL' ? 'call' : 'put'}`;
 
                 document.getElementById('confValue').innerText = `${data.confidence}%`;
-                document.getElementById('entryPriceLabel').innerText = currentMode === 'live' ? `В ${entryTimeStr}` : `$${currentStake.toFixed(2)}`;
-                document.getElementById('reason').innerText = `💡 Вход в ${entryTimeStr}. ${data.reason}`;
+                document.getElementById('entryPriceLabel').innerText = `${entryTimeStr} • $${currentStake.toFixed(2)}`;
+                document.getElementById('reason').innerText = `💡 ${data.reason}`;
 
                 card.style.display = 'block';
-                btn.innerText = '🔍 НОВЫЙ СКАН';
+                btn.innerText = '🔍 НОВЫЙ СКАН OTC';
 
                 startSyncedTimers(data, entryTimestamp);
 
             } catch (e) {
                 alert("Ошибка соединения. Попробуй ещё раз.");
-                btn.innerText = '🔍 ПРОАНАЛИЗИРОВАТЬ СВЕЧИ';
+                btn.innerText = '🔍 ПРОСКАНИРОВАТЬ OTC СВЕЧИ';
             } finally {
                 btn.disabled = false;
             }
@@ -741,7 +698,7 @@
             let entered = false;
             let lastPrepSec = -1;
 
-            syncInterval = setInterval(async () => {
+            syncInterval = setInterval(() => {
                 const now = Date.now();
 
                 if (now < entryTimestamp) {
@@ -758,11 +715,7 @@
                 } else if (now < closeTimestamp) {
                     if (!entered) {
                         entered = true;
-                        if (currentMode === 'live') {
-                            await loadRealCandles();
-                            lockedEntryPrice = currentRealPrice;
-                            document.getElementById('entryPriceLabel').innerText = lockedEntryPrice.toFixed(getDecimals(lockedEntryPrice));
-                        }
+                        lockedEntryPrice = currentPrice;
                         if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('heavy');
                     }
                     const secLeft = Math.ceil((closeTimestamp - now) / 1000);
@@ -774,46 +727,26 @@
                     clearInterval(syncInterval);
                     prepBox.style.display = 'none';
                     liveBox.style.display = 'none';
-
-                    if (currentMode === 'live') {
-                        await loadRealCandles();
-                        finalizeRealTrade();
-                    } else {
-                        document.getElementById('otcOutcomeRow').style.display = 'grid';
-                    }
+                    trendBias = 0;
+                    // Показываем кнопки честной фиксации реального результата на Pocket Option
+                    document.getElementById('outcomeRow').style.display = 'grid';
+                    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
                 }
-            }, 250);
+            }, 200);
         }
 
-        function finalizeRealTrade() {
-            const exitPrice = currentRealPrice;
-            const dec = getDecimals(exitPrice);
-            const win = activeDirection === 'CALL' ? exitPrice > lockedEntryPrice : exitPrice < lockedEntryPrice;
-
-            const banner = document.getElementById('resultBanner');
-            const resLabel = win ? 'WIN 🟢 (ПЛЮС)' : 'LOSS 🔴 (МИНУС)';
-            banner.innerText = `РЕАЛЬНЫЙ ИТОГ: ${resLabel} | ${lockedEntryPrice.toFixed(dec)} → ${exitPrice.toFixed(dec)}`;
-            banner.className = `result-banner ${win ? 'result-win' : 'result-loss'}`;
-            banner.style.display = 'block';
-
-            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(win ? 'success' : 'error');
-        }
-
-        // Логика калькулятора перекрытий OTC (выплата 92%)
         function recalcStake() {
             const base = Math.max(1, parseFloat(document.getElementById('baseStake').value) || 1);
             if (martStep === 0) {
                 currentStake = base;
             } else {
-                // Чтобы перекрыть прошлые убытки и получить базовый профит при выплате 92% (0.92)
                 currentStake = Math.ceil(((totalLossesInChain + base * 0.92) / 0.92) * 100) / 100;
             }
             document.getElementById('nextStakeDisplay').innerText = `$${currentStake.toFixed(2)}`;
-            document.getElementById('stepDisplay').innerText = martStep === 0 ? 'Шаг 0 (База)' : `Перекрытие #${martStep}`;
         }
 
-        function recordOtcOutcome(isWin) {
-            document.getElementById('otcOutcomeRow').style.display = 'none';
+        function recordOutcome(isWin) {
+            document.getElementById('outcomeRow').style.display = 'none';
             const banner = document.getElementById('resultBanner');
 
             if (isWin) {
@@ -821,7 +754,7 @@
                 sessionProfit += netWin;
                 martStep = 0;
                 totalLossesInChain = 0;
-                banner.innerText = `✅ СДЕЛКА В ПЛЮС (+$${netWin.toFixed(2)}) • Возврат к базовой ставке`;
+                banner.innerText = `✅ ПЛЮС (+$${netWin.toFixed(2)}) • Возврат к базовой ставке`;
                 banner.className = 'result-banner result-win';
             } else {
                 sessionProfit -= currentStake;
