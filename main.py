@@ -1,7 +1,6 @@
 import os
 import asyncio
 import logging
-from datetime import datetime, timedelta
 from aiohttp import web, ClientSession
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
@@ -9,380 +8,389 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 
 # ================= НАСТРОЙКИ =================
 TG_TOKEN = "9044932823:AAFV-Kc36rZ-XqQflnHmt4QX2rxQluyGBMk"
-MAX_MARKUP_PERCENT = 5.0  # Строгий лимит: разрешено от 0% до 5%, больше 5% — не пропускаем
+MRKT_TOKEN = os.environ.get("MRKT_TOKEN", "")
+MRKT_API_URL = "https://api.tgmrkt.io/api/v1/gifts/saling"
+MAX_MARKUP_LIMIT = 5.0  # Жесткий лимит: не выше 5% от флора
+NANO = 1_000_000_000
+ITEMS_PER_PAGE = 10
 # =============================================
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TG_TOKEN)
 dp = Dispatcher()
 
-PAIRS_CONFIG = {
-    "EUR/USD": {"source": "yahoo", "symbol": "EURUSD=X"},
-    "GBP/USD": {"source": "yahoo", "symbol": "GBPUSD=X"},
-    "USD/JPY": {"source": "yahoo", "symbol": "USDJPY=X"},
-    "AUD/CAD": {"source": "yahoo", "symbol": "AUDCAD=X"},
-    "USD/CHF": {"source": "yahoo", "symbol": "USDCHF=X"},
-    "BTC/USD": {"source": "binance", "symbol": "BTCUSDT"},
-    "ETH/USD": {"source": "binance", "symbol": "ETHUSDT"},
-    "SOL/USD": {"source": "binance", "symbol": "SOLUSDT"},
-    "XRP/USD": {"source": "binance", "symbol": "XRPUSDT"},
-}
+# Полный список коллекций Telegram NFT Gifts (от бюджетных до редких)
+COLLECTIONS = [
+    "Homemade Cake",
+    "Lol Pop",
+    "Candy Cane",
+    "Jingle Bells",
+    "Santa Hat",
+    "Ginger Cookie",
+    "Winter Wreath",
+    "Snow Globe",
+    "Snow Mittens",
+    "Cookie Heart",
+    "B-Day Candle",
+    "Desk Calendar",
+    "Lunar Snake",
+    "Jester Hat",
+    "Party Sparkler",
+    "Spiced Wine",
+    "Hypno Lollipop",
+    "Witch Hat",
+    "Hex Pot",
+    "Evil Eye",
+    "Berry Box",
+    "Bunny Muffin",
+    "Star Notepad",
+    "Jelly Bunny",
+    "Sakura Flower",
+    "Top Hat",
+    "Love Potion",
+    "Love Candle",
+    "Hanging Star",
+    "Crystal Ball",
+    "Eternal Rose",
+    "Trapped Heart",
+    "Skull Flower",
+    "Flying Broom",
+    "Mad Pumpkin",
+    "Sharp Tongue",
+    "Voodo Doll",
+    "Record Player",
+    "Electric Skull",
+    "Tamagotchi",
+    "Genie Lamp",
+    "Diamond Ring",
+    "Ion Gem",
+    "Astral Shard",
+    "Mini Oscar",
+    "Loot Bag",
+    "Kissed Frog",
+    "Scared Cat",
+    "Signet Ring",
+    "Swiss Watch",
+    "Vintage Cigar",
+    "Magic Potion",
+    "Perfume Bottle",
+    "Precious Peach",
+    "Durov's Cap",
+    "Plush Pepe"
+]
 
-# Состояние настроек каждого пользователя в памяти
-user_settings = {}
+user_state = {}
 
-def get_user_cfg(user_id: int):
-    if user_id not in user_settings:
-        user_settings[user_id] = {
-            "pair": "EUR/USD",
-            "tf": "1m",
-            "markup": 2.5
+def get_cfg(user_id: int):
+    if user_id not in user_state:
+        user_state[user_id] = {
+            "collection": "Homemade Cake",
+            "budget": 5.0,
+            "markup": 5.0,
+            "page": 0,
+            "awaiting_budget": False
         }
-    return user_settings[user_id]
+    return user_state[user_id]
 
-def calc_ema(prices, period):
-    if not prices:
-        return 0.0
-    k = 2 / (period + 1)
-    ema = prices[0]
-    for p in prices[1:]:
-        ema = p * k + ema * (1 - k)
-    return ema
+async def fetch_mrkt_lots(collection_name: str, count: int = 30):
+    if not MRKT_TOKEN:
+        raise RuntimeError("Не задан MRKT_TOKEN в переменных окружения сервера.")
 
-def calc_rsi(prices, period=14):
-    if len(prices) < period + 1:
-        return 50.0
-    gains, losses = [], []
-    for i in range(1, len(prices)):
-        diff = prices[i] - prices[i - 1]
-        gains.append(max(diff, 0))
-        losses.append(max(-diff, 0))
-    avg_gain = sum(gains[-period:]) / period
-    avg_loss = sum(losses[-period:]) / period
-    if avg_loss == 0:
-        return 100.0
-    rs = avg_gain / avg_loss
-    return round(100 - (100 / (1 + rs)), 1)
-
-def calc_bollinger(prices, period=20):
-    if len(prices) < period:
-        p = prices[-1]
-        return p, p
-    window = prices[-period:]
-    sma = sum(window) / period
-    variance = sum((x - sma) ** 2 for x in window) / period
-    std = variance ** 0.5
-    return sma + 2 * std, sma - 2 * std
-
-async def fetch_market_candles(pair: str, tf: str):
-    cfg = PAIRS_CONFIG.get(pair, PAIRS_CONFIG["EUR/USD"])
-    interval = "5m" if tf == "5m" else "1m"
+    headers = {
+        "Authorization": MRKT_TOKEN,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    payload = {
+        "collectionNames": [collection_name],
+        "ordering": "Price",
+        "lowToHigh": True,
+        "count": count,
+        "cursor": ""
+    }
 
     async with ClientSession() as session:
-        if cfg["source"] == "binance":
-            url = f"https://api.binance.com/api/v3/klines?symbol={cfg['symbol']}&interval={interval}&limit=40"
-            async with session.get(url, timeout=8) as resp:
-                if resp.status != 200:
-                    raise RuntimeError(f"Binance HTTP {resp.status}")
-                raw = await resp.json()
-                return [
-                    {
-                        "time": int(k[0]),
-                        "open": float(k[1]),
-                        "high": float(k[2]),
-                        "low": float(k[3]),
-                        "close": float(k[4])
-                    }
-                    for k in raw
-                ]
-        else:
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{cfg['symbol']}?interval={interval}&range=1d"
-            headers = {"User-Agent": "Mozilla/5.0"}
-            async with session.get(url, headers=headers, timeout=8) as resp:
-                if resp.status != 200:
-                    raise RuntimeError(f"Market HTTP {resp.status}")
-                data = await resp.json()
-                result = data["chart"]["result"][0]
-                timestamps = result["timestamp"]
-                quote = result["indicators"]["quote"][0]
-                candles = []
-                for i in range(len(timestamps)):
-                    o, h, l, c = quote["open"][i], quote["high"][i], quote["low"][i], quote["close"][i]
-                    if o is not None and c is not None:
-                        candles.append({
-                            "time": int(timestamps[i]) * 1000,
-                            "open": float(o),
-                            "high": float(h),
-                            "low": float(l),
-                            "close": float(c)
-                        })
-                return candles[-40:]
+        async with session.post(MRKT_API_URL, json=payload, headers=headers, timeout=10) as resp:
+            if resp.status == 401:
+                raise RuntimeError("Токен MRKT_TOKEN устарел (HTTP 401). Обнови токен из DevTools.")
+            if resp.status != 200:
+                text = await resp.text()
+                raise RuntimeError(f"Ошибка API MRKT ({resp.status}): {text[:120]}")
+            data = await resp.json()
+            if isinstance(data, list):
+                return data
+            return data.get("gifts") or data.get("items") or data.get("data") or []
 
-def get_next_candle_entry(tf: str):
-    now = datetime.utcnow()
-    step = 5 if tf == "5m" else 1
-    target = now.replace(second=0, microsecond=0)
-    rem = now.minute % step
-    mins_to_add = step - rem
-    secs_left = (mins_to_add * 60) - now.second
-    if secs_left < 7:
-        mins_to_add += step
-    entry_dt = target + timedelta(minutes=mins_to_add)
-    wait_seconds = (entry_dt - now).total_seconds()
-    return entry_dt, max(1, int(round(wait_seconds)))
+def extract_price_ton(item: dict) -> float:
+    raw = item.get("price") or item.get("salePrice") or 0
+    val = float(raw)
+    return round(val / NANO, 4) if val > 100_000 else round(val, 4)
 
-# ================= КЛАВИАТУРЫ МЕНЮ =================
+# ================= МЕНЮ БЕЗ ЭМОДЗИ =================
 def build_main_menu(user_id: int) -> InlineKeyboardMarkup:
-    cfg = get_user_cfg(user_id)
+    cfg = get_cfg(user_id)
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔍 ПОЛУЧИТЬ СИГНАЛ (РЕАЛЬНЫЙ РЫНОК)", callback_data="scan_now")],
+        [InlineKeyboardButton(text="ПОИСК ЛОТОВ НА MRKT", callback_data="scan_mrkt")],
         [
-            InlineKeyboardButton(text=f"💱 Пара: {cfg['pair']}", callback_data="menu_pairs"),
-            InlineKeyboardButton(text=f"⏱ ТФ: {cfg['tf'].upper()}", callback_data="toggle_tf")
+            InlineKeyboardButton(text=f"Коллекция: {cfg['collection']}", callback_data="menu_col:0"),
+            InlineKeyboardButton(text=f"Бюджет: {cfg['budget']} TON", callback_data="menu_budget")
         ],
-        [InlineKeyboardButton(text=f"📊 Наценка: {cfg['markup']}% (лимит ≤ 5%)", callback_data="menu_markup")]
+        [InlineKeyboardButton(text=f"Макс. наценка: +{cfg['markup']}% от флора (лимит 5%)", callback_data="menu_markup")]
     ])
 
-def build_pairs_menu() -> InlineKeyboardMarkup:
+def build_collections_menu(page: int = 0) -> InlineKeyboardMarkup:
+    total_pages = (len(COLLECTIONS) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
+    page = max(0, min(page, total_pages - 1))
+    start = page * ITEMS_PER_PAGE
+    chunk = COLLECTIONS[start:start + ITEMS_PER_PAGE]
+
     rows = []
-    pairs = list(PAIRS_CONFIG.keys())
-    for i in range(0, len(pairs), 2):
-        row = [InlineKeyboardButton(text=pairs[i], callback_data=f"set_pair:{pairs[i]}")]
-        if i + 1 < len(pairs):
-            row.append(InlineKeyboardButton(text=pairs[i + 1], callback_data=f"set_pair:{pairs[i + 1]}"))
+    for i in range(0, len(chunk), 2):
+        row = [InlineKeyboardButton(text=chunk[i], callback_data=f"set_col:{chunk[i]}")]
+        if i + 1 < len(chunk):
+            row.append(InlineKeyboardButton(text=chunk[i + 1], callback_data=f"set_col:{chunk[i + 1]}"))
         rows.append(row)
-    rows.append([InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="back_main")])
+
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton(text="< Пред.", callback_data=f"menu_col:{page - 1}"))
+    nav_row.append(InlineKeyboardButton(text=f"Стр. {page + 1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav_row.append(InlineKeyboardButton(text="След. >", callback_data=f"menu_col:{page + 1}"))
+    rows.append(nav_row)
+
+    rows.append([InlineKeyboardButton(text="Назад в меню", callback_data="back_main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+def build_budget_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="1 TON", callback_data="set_budget:1"),
+            InlineKeyboardButton(text="2 TON", callback_data="set_budget:2"),
+            InlineKeyboardButton(text="5 TON", callback_data="set_budget:5"),
+        ],
+        [
+            InlineKeyboardButton(text="10 TON", callback_data="set_budget:10"),
+            InlineKeyboardButton(text="25 TON", callback_data="set_budget:25"),
+            InlineKeyboardButton(text="50 TON", callback_data="set_budget:50"),
+        ],
+        [
+            InlineKeyboardButton(text="100 TON", callback_data="set_budget:100"),
+            InlineKeyboardButton(text="250 TON", callback_data="set_budget:250"),
+        ],
+        [InlineKeyboardButton(text="Ввести свой бюджет в TON", callback_data="custom_budget")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_main")]
+    ])
 
 def build_markup_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="0%", callback_data="set_markup:0"),
-            InlineKeyboardButton(text="1.5%", callback_data="set_markup:1.5"),
-            InlineKeyboardButton(text="2.5%", callback_data="set_markup:2.5"),
-            InlineKeyboardButton(text="5.0%", callback_data="set_markup:5.0"),
+            InlineKeyboardButton(text="0% (только флор)", callback_data="set_markup:0"),
+            InlineKeyboardButton(text="2%", callback_data="set_markup:2"),
+            InlineKeyboardButton(text="3.5%", callback_data="set_markup:3.5"),
+            InlineKeyboardButton(text="5% (макс.)", callback_data="set_markup:5"),
         ],
-        [InlineKeyboardButton(text="🚫 Тест >5% (6.0% — отклон)", callback_data="set_markup:6.0")],
-        [InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="back_main")]
+        [InlineKeyboardButton(text="Назад", callback_data="back_main")]
     ])
 
-def render_main_text(user_id: int) -> str:
-    cfg = get_user_cfg(user_id)
-    markup_status = "✅ В норме (≤5%)" if 0 <= cfg["markup"] <= MAX_MARKUP_PERCENT else "⛔ Превышает 5% (вход заблокирован)"
+def render_dashboard(user_id: int) -> str:
+    cfg = get_cfg(user_id)
     return (
-        "⚡ **PT PRIME AI • ТЕРМИНАЛ POCKET OPTION**\n\n"
-        f"• **Актив (без OTC):** `{cfg['pair']}`\n"
-        f"• **Экспирация:** `{cfg['tf'].upper()}`\n"
-        f"• **Наценка:** `{cfg['markup']}%` ({markup_status})\n\n"
-        "Нажми **«Получить сигнал»**, чтобы проанализировать реальные свечи рынка."
+        "MRKT NFT GIFTS — ПАРСЕР ЛОТОВ\n\n"
+        f"Коллекция: {cfg['collection']}\n"
+        f"Бюджет: до {cfg['budget']} TON\n"
+        f"Допустимая наценка от флора: до +{cfg['markup']}% (максимум 5%)\n\n"
+        "Нажмите «ПОИСК ЛОТОВ НА MRKT» для проверки предложений."
     )
 
 # ================= ОБРАБОТЧИКИ =================
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
+    get_cfg(message.from_user.id)["awaiting_budget"] = False
     await message.answer(
-        render_main_text(message.from_user.id),
-        reply_markup=build_main_menu(message.from_user.id),
-        parse_mode="Markdown"
+        render_dashboard(message.from_user.id),
+        reply_markup=build_main_menu(message.from_user.id)
     )
+
+@dp.callback_query(F.data == "noop")
+async def cb_noop(call: CallbackQuery):
+    await call.answer()
 
 @dp.callback_query(F.data == "back_main")
-async def cb_back_main(call: CallbackQuery):
+async def cb_back(call: CallbackQuery):
+    get_cfg(call.from_user.id)["awaiting_budget"] = False
     await call.message.edit_text(
-        render_main_text(call.from_user.id),
-        reply_markup=build_main_menu(call.from_user.id),
-        parse_mode="Markdown"
+        render_dashboard(call.from_user.id),
+        reply_markup=build_main_menu(call.from_user.id)
     )
     await call.answer()
 
-@dp.callback_query(F.data == "menu_pairs")
-async def cb_menu_pairs(call: CallbackQuery):
+@dp.callback_query(F.data.startswith("menu_col:"))
+async def cb_menu_col(call: CallbackQuery):
+    page = int(call.data.split(":", 1)[1])
+    get_cfg(call.from_user.id)["page"] = page
     await call.message.edit_text(
-        "💱 **Выбери реальную валютную или крипто-пару** (в Pocket Option открывай актив **БЕЗ приписки OTC**):",
-        reply_markup=build_pairs_menu(),
-        parse_mode="Markdown"
+        "Выберите коллекцию подарков (от бюджетных на 1 стр. до редких):",
+        reply_markup=build_collections_menu(page)
     )
     await call.answer()
 
-@dp.callback_query(F.data.startswith("set_pair:"))
-async def cb_set_pair(call: CallbackQuery):
-    pair = call.data.split(":", 1)[1]
-    get_user_cfg(call.from_user.id)["pair"] = pair
+@dp.callback_query(F.data.startswith("set_col:"))
+async def cb_set_col(call: CallbackQuery):
+    col = call.data.split(":", 1)[1]
+    get_cfg(call.from_user.id)["collection"] = col
     await call.message.edit_text(
-        render_main_text(call.from_user.id),
-        reply_markup=build_main_menu(call.from_user.id),
-        parse_mode="Markdown"
+        render_dashboard(call.from_user.id),
+        reply_markup=build_main_menu(call.from_user.id)
     )
-    await call.answer(f"Выбрана пара {pair}")
+    await call.answer(f"Выбрано: {col}")
 
-@dp.callback_query(F.data == "toggle_tf")
-async def cb_toggle_tf(call: CallbackQuery):
-    cfg = get_user_cfg(call.from_user.id)
-    cfg["tf"] = "5m" if cfg["tf"] == "1m" else "1m"
+@dp.callback_query(F.data == "menu_budget")
+async def cb_menu_budget(call: CallbackQuery):
     await call.message.edit_text(
-        render_main_text(call.from_user.id),
-        reply_markup=build_main_menu(call.from_user.id),
-        parse_mode="Markdown"
+        "Выберите максимальный бюджет на подарок (в TON):",
+        reply_markup=build_budget_menu()
     )
-    await call.answer(f"Таймфрейм: {cfg['tf'].upper()}")
+    await call.answer()
+
+@dp.callback_query(F.data.startswith("set_budget:"))
+async def cb_set_budget(call: CallbackQuery):
+    val = float(call.data.split(":", 1)[1])
+    cfg = get_cfg(call.from_user.id)
+    cfg["budget"] = val
+    cfg["awaiting_budget"] = False
+    await call.message.edit_text(
+        render_dashboard(call.from_user.id),
+        reply_markup=build_main_menu(call.from_user.id)
+    )
+    await call.answer(f"Бюджет: {val} TON")
+
+@dp.callback_query(F.data == "custom_budget")
+async def cb_custom_budget(call: CallbackQuery):
+    get_cfg(call.from_user.id)["awaiting_budget"] = True
+    await call.message.edit_text("Введите числом ваш максимальный бюджет в TON (например: 3.5 или 15):")
+    await call.answer()
+
+@dp.message(F.text)
+async def handle_custom_budget_input(message: Message):
+    cfg = get_cfg(message.from_user.id)
+    if not cfg.get("awaiting_budget"):
+        return
+    try:
+        val = float(message.text.replace(",", ".").strip())
+        if val <= 0:
+            raise ValueError
+        cfg["budget"] = round(val, 2)
+        cfg["awaiting_budget"] = False
+        await message.answer(
+            render_dashboard(message.from_user.id),
+            reply_markup=build_main_menu(message.from_user.id)
+        )
+    except ValueError:
+        await message.answer("Некорректное значение. Введите положительное число в TON (например: 4.5):")
 
 @dp.callback_query(F.data == "menu_markup")
 async def cb_menu_markup(call: CallbackQuery):
     await call.message.edit_text(
-        "📊 **Выбери допустимую наценку (строго до 5%):**\n"
-        "Если наценка выше `5%`, система автоматически запретит вход в сделку.",
-        reply_markup=build_markup_menu(),
-        parse_mode="Markdown"
+        "Выберите максимальную наценку от флора коллекции (не более 5%):",
+        reply_markup=build_markup_menu()
     )
     await call.answer()
 
 @dp.callback_query(F.data.startswith("set_markup:"))
 async def cb_set_markup(call: CallbackQuery):
     val = float(call.data.split(":", 1)[1])
-    get_user_cfg(call.from_user.id)["markup"] = val
+    if val > MAX_MARKUP_LIMIT:
+        val = MAX_MARKUP_LIMIT
+    get_cfg(call.from_user.id)["markup"] = val
     await call.message.edit_text(
-        render_main_text(call.from_user.id),
-        reply_markup=build_main_menu(call.from_user.id),
-        parse_mode="Markdown"
+        render_dashboard(call.from_user.id),
+        reply_markup=build_main_menu(call.from_user.id)
     )
-    await call.answer(f"Наценка установлена: {val}%")
+    await call.answer(f"Макс. наценка: +{val}%")
 
-async def track_trade_outcome(chat_id: int, message_id: int, pair: str, tf: str, is_call: bool, wait_to_entry: int):
-    try:
-        # Ждём открытия свечи (:00)
-        await asyncio.sleep(wait_to_entry)
-        entry_candles = await fetch_market_candles(pair, tf)
-        entry_price = entry_candles[-1]["close"]
+@dp.callback_query(F.data == "scan_mrkt")
+async def cb_scan_mrkt(call: CallbackQuery):
+    cfg = get_cfg(call.from_user.id)
+    col = cfg["collection"]
+    budget = cfg["budget"]
+    markup_pct = min(cfg["markup"], MAX_MARKUP_LIMIT)
 
-        # Ждём закрытия свечи
-        duration = 300 if tf == "5m" else 60
-        await asyncio.sleep(duration)
-
-        exit_candles = await fetch_market_candles(pair, tf)
-        exit_price = exit_candles[-1]["close"]
-
-        win = (exit_price > entry_price) if is_call else (exit_price < entry_price)
-        res_badge = "✅ **WIN (ПЛЮС)**" if win else "❌ **LOSS (МИНУС)**"
-
-        await bot.send_message(
-            chat_id,
-            f"🏁 **Итог сделки по {pair} ({tf.upper()}):** {res_badge}\n"
-            f"• Цена входа: `{entry_price}`\n"
-            f"• Цена закрытия: `{exit_price}`",
-            reply_to_message_id=message_id,
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logging.error(f"Outcome check error: {e}")
-
-@dp.callback_query(F.data == "scan_now")
-async def cb_scan_now(call: CallbackQuery):
-    cfg = get_user_cfg(call.from_user.id)
-    pair = cfg["pair"]
-    tf = cfg["tf"]
-    markup = cfg["markup"]
-
-    # Жёсткий фильтр наценки: только от 0% до 5%
-    if not (0 <= markup <= MAX_MARKUP_PERCENT):
-        await call.answer(f"⛔ Наценка {markup}% больше 5%! Вход отменён.", show_alert=True)
-        return
-
-    await call.answer("🔍 Сканирую реальный график...")
-    await call.message.edit_text(f"⏳ Загружаю свечи **{pair} ({tf.upper()})** и считаю RSI / EMA...", parse_mode="Markdown")
+    await call.answer("Запрос к MRKT...")
+    await call.message.edit_text(f"Сканирование MRKT по коллекции {col}...")
 
     try:
-        candles = await fetch_market_candles(pair, tf)
-        if len(candles) < 20:
+        lots = await fetch_mrkt_lots(col, count=30)
+        if not lots:
             await call.message.edit_text(
-                f"⚠️ По паре **{pair}** биржа сейчас закрыта (выходной). Выбери крипто-пару (`BTC/USD`, `ETH/USD`, `SOL/USD`).",
-                reply_markup=build_main_menu(call.from_user.id),
-                parse_mode="Markdown"
+                f"По коллекции {col} сейчас нет активных лотов на MRKT.",
+                reply_markup=build_main_menu(call.from_user.id)
             )
             return
 
-        closes = [c["close"] for c in candles]
-        last_price = closes[-1]
-        rsi = calc_rsi(closes, 14)
-        ema9 = calc_ema(closes[-15:], 9)
-        ema21 = calc_ema(closes[-25:], 21)
-        upper_bb, lower_bb = calc_bollinger(closes, 20)
-
-        market_dev = round(abs((last_price - ema21) / ema21) * 100, 3) if ema21 else 0.0
-        if market_dev > MAX_MARKUP_PERCENT:
+        prices = [extract_price_ton(item) for item in lots if extract_price_ton(item) > 0]
+        if not prices:
             await call.message.edit_text(
-                f"⛔ Отклонение рынка `{market_dev}%` превышает лимит `5%`. Вход пропущен.",
-                reply_markup=build_main_menu(call.from_user.id),
-                parse_mode="Markdown"
+                "Не удалось определить цены лотов.",
+                reply_markup=build_main_menu(call.from_user.id)
             )
             return
 
-        call_pts, put_pts = 0, 0
-        reasons = []
+        floor_price = min(prices)
+        max_allowed_by_markup = round(floor_price * (1 + markup_pct / 100.0), 4)
+        final_price_cap = min(budget, max_allowed_by_markup)
 
-        if rsi <= 33:
-            call_pts += 2
-            reasons.append(f"перепроданность RSI ({rsi})")
-        elif rsi >= 67:
-            put_pts += 2
-            reasons.append(f"перекупленность RSI ({rsi})")
-        elif rsi < 50:
-            call_pts += 1
-            reasons.append(f"RSI ({rsi}) в зоне отскока вверх")
-        else:
-            put_pts += 1
-            reasons.append(f"RSI ({rsi}) в зоне давления вниз")
+        if floor_price > budget:
+            await call.message.edit_text(
+                f"Флор коллекции {col} составляет {floor_price} TON, что превышает ваш бюджет {budget} TON.\n"
+                "Увеличьте бюджет или выберите более дешевую коллекцию.",
+                reply_markup=build_main_menu(call.from_user.id)
+            )
+            return
 
-        if last_price <= lower_bb:
-            call_pts += 2
-            reasons.append("касание нижней полосы Боллинджера")
-        elif last_price >= upper_bb:
-            put_pts += 2
-            reasons.append("пробой верхней полосы Боллинджера")
+        matched = []
+        for item in lots:
+            p = extract_price_ton(item)
+            if p <= 0:
+                continue
+            item_markup = ((p - floor_price) / floor_price) * 100.0
+            # Строгий фильтр: цена в пределах бюджета И наценка от 0% до markup_pct (не выше 5%)
+            if p <= budget and 0 <= item_markup <= markup_pct:
+                num = item.get("number") or item.get("giftNumber") or "?"
+                model = item.get("modelName") or item.get("model") or "Стандарт"
+                bg = item.get("backdropName") or item.get("backdrop") or "-"
+                matched.append((p, round(item_markup, 2), num, model, bg))
 
-        if ema9 > ema21:
-            call_pts += 1
-            reasons.append("импульс EMA9 > EMA21")
-        else:
-            put_pts += 1
-            reasons.append("импульс EMA9 < EMA21")
+        if not matched:
+            await call.message.edit_text(
+                f"Подходящих лотов не найдено.\n"
+                f"Флор {col}: {floor_price} TON | Ваш лимит: до {final_price_cap} TON (наценка до +{markup_pct}%).",
+                reply_markup=build_main_menu(call.from_user.id)
+            )
+            return
 
-        is_call = call_pts >= put_pts
-        confidence = min(94, 72 + abs(call_pts - put_pts) * 6)
-        direction_text = "🟢 **ВВЕРХ (CALL)**" if is_call else "🔴 **ВНИЗ (PUT)**"
+        lines = [
+            f"РЕЗУЛЬТАТЫ MRKT: {col}",
+            f"Текущий флор: {floor_price} TON",
+            f"Фильтр: бюджет <= {budget} TON, наценка <= +{markup_pct}% (до {max_allowed_by_markup} TON)",
+            "----------------------------------------"
+        ]
+        for p, m_pct, num, model, bg in matched[:10]:
+            lines.append(f"#{num} | {p} TON (+{m_pct}% от флора) | Модель: {model} | Фон: {bg}")
 
-        entry_dt, wait_sec = get_next_candle_entry(tf)
-        entry_str = entry_dt.strftime("%H:%M:%S UTC")
-
-        signal_text = (
-            f"📊 **СИГНАЛ • {pair} ({tf.upper()})**\n\n"
-            f"• Направление: {direction_text}\n"
-            f"• Точность расчёта: `{confidence}%`\n"
-            f"• Текущая цена: `{last_price}`\n"
-            f"• Наценка: `{markup}%` (в норме ≤ 5%)\n"
-            f"• Вход в сделку через: **{wait_sec} сек** (в `{entry_str}`)\n\n"
-            f"💡 **Анализ:** {', '.join(reasons)}."
-        )
-
-        sent = await call.message.edit_text(
-            signal_text,
-            reply_markup=build_main_menu(call.from_user.id),
-            parse_mode="Markdown"
-        )
-
-        asyncio.create_task(
-            track_trade_outcome(call.message.chat.id, sent.message_id, pair, tf, is_call, wait_sec)
+        await call.message.edit_text(
+            "\n".join(lines),
+            reply_markup=build_main_menu(call.from_user.id)
         )
 
     except Exception as e:
         await call.message.edit_text(
-            f"❌ Ошибка получения рыночных данных: `{e}`",
-            reply_markup=build_main_menu(call.from_user.id),
-            parse_mode="Markdown"
+            f"Ошибка при получении данных MRKT:\n{e}",
+            reply_markup=build_main_menu(call.from_user.id)
         )
 
-# Веб-сервер-заглушка, чтобы Render Web Service оставался активным (Live)
 async def handle_health(request):
-    return web.Response(text="PT Prime Bot is running")
+    return web.Response(text="MRKT Scanner Active")
 
 async def start_services():
     app = web.Application()
