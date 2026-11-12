@@ -8,7 +8,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
 # ================= НАСТРОЙКИ =================
-TG_TOKEN = os.environ.get("9044932823:AAFV-Kc36rZ-XqQflnHmt4QX2rxQluyGBMk")
+TG_TOKEN = "9044932823:AAFV-Kc36rZ-XqQflnHmt4QX2rxQluyGBMk"
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://otc-mini-app.onrender.com")
 # =============================================
 
